@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>긴장의 시대: 국제정치 온라인 내러티브</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <div><p class="eyebrow">MULTIPLAYER POLITICAL NARRATIVE</p><h1>긴장의 시대</h1></div>
+    <div class="status-row"><span id="authStatus" class="status-pill">연결 준비 중</span><span id="roomBadge" class="status-pill hidden"></span></div>
+  </header>
+  <main>
+    <section id="setupScreen" class="screen active">
+      <div class="hero panel">
+        <div>
+          <p class="eyebrow">SCENARIO 01</p><h2>아르덴 해협 위기</h2>
+          <p class="lead">에너지 수송의 핵심인 아르덴 해협에서 무력 충돌이 시작됐다. 8개 라운드 동안 위기는 단계적으로 심화된다. 협력, 압박, 비밀협상, 배신과 전쟁을 통해 자국의 목표를 달성하라.</p>
+          <div class="theory-tags"><span>현실주의</span><span>자유주의</span><span>안보 딜레마</span><span>정보 비대칭</span></div>
+        </div>
+        <div class="setup-card">
+          <label>플레이어 이름</label><input id="playerName" maxlength="18" placeholder="예: 민준" />
+          <button id="createRoomBtn" class="primary">새 방 만들기</button>
+          <div class="divider"><span>또는</span></div>
+          <label>방 코드</label><div class="inline"><input id="roomCodeInput" maxlength="6" placeholder="ABC123" /><button id="joinRoomBtn">참가</button></div>
+          <p class="hint">최소 2명. 라운드는 자동으로 진행됩니다.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="lobbyScreen" class="screen">
+      <div class="lobby-grid">
+        <article class="panel"><div class="section-title"><div><p class="eyebrow">ROOM</p><h2>국가 선택</h2></div><button id="copyCodeBtn" class="ghost">방 코드 복사</button></div><div id="nationCards" class="nation-grid"></div></article>
+        <aside class="panel"><p class="eyebrow">PLAYERS</p><h2>참가자</h2><div id="lobbyPlayers" class="player-list"></div><button id="startGameBtn" class="primary hidden">게임 시작</button><p id="hostNotice" class="hint">방장만 시작할 수 있습니다.</p></aside>
+      </div>
+    </section>
+
+    <section id="gameScreen" class="screen">
+      <div class="game-layout">
+        <aside class="panel sidebar">
+          <p class="eyebrow">YOUR STATE</p><div id="myNationCard"></div>
+          <div class="round-stack">
+            <div><span>ROUND</span><strong id="roundValue">1 / 8</strong></div>
+            <div><span>남은 시간</span><strong id="timerValue">01:30</strong></div>
+            <div><span>행동력</span><strong id="apValue">3 / 3</strong></div>
+          </div>
+          <div class="meter"><div class="meter-label"><span>세계 긴장도</span><strong id="tensionValue">25</strong></div><div class="meter-bar"><i id="tensionBar"></i></div></div>
+          <div class="small-stats"><div><span>신뢰도</span><strong id="trustValue">50</strong></div><div><span>영향력</span><strong id="influenceValue">50</strong></div><div><span>군사력</span><strong id="militaryValue">50</strong></div><div><span>경제력</span><strong id="economyValue">50</strong></div><div class="wide-stat"><span>국내 안정도</span><strong id="stabilityValue">50</strong></div></div>
+        </aside>
+
+        <section class="center-column">
+          <article class="panel crisis-panel">
+            <div class="section-title"><div><p class="eyebrow">MAIN STORY</p><h2 id="scenarioTitle">제1막 · 충돌</h2></div><span id="phaseBadge" class="danger-pill">불안</span></div>
+            <p id="scenarioDesc"></p><div id="latestEvent" class="breaking"></div><div id="eventChoiceCard" class="event-choice-card"><div class="choice-head"><div><p class="eyebrow">YOUR DECISION</p><h3>이번 사건에 어떻게 대응하시겠습니까?</h3></div><span id="choiceStatus" class="choice-status">선택 필요</span></div><div id="eventChoices" class="event-choices"></div><div id="eventChoiceResult" class="choice-result hidden"></div></div>
+          </article>
+
+          <article class="panel">
+            <div class="section-title"><div><p class="eyebrow">ACTION CENTER</p><h2>당신의 행동</h2></div><span class="hint">공식 성명·비밀 메시지는 무료, 주요 행동은 AP를 소모합니다.</span></div>
+            <div class="action-tabs"><button class="tab active" data-tab="public">공개 행동</button><button class="tab" data-tab="private">비밀 외교</button><button class="tab" data-tab="military">군사 행동</button></div>
+            <div id="publicTab" class="tab-panel active">
+              <label>대상 국가</label><select id="publicTarget"></select><label>공식 성명 기조</label><select id="statementTone"><option value="reconcile">화해적 · 긴장 완화</option><option value="neutral" selected>중립적 · 영향력 확보</option><option value="hardline">강경 · 압박 강화</option></select><label>공식 선언 또는 제안</label><textarea id="publicMessage" maxlength="240" placeholder="예: 우리 국가는 즉각적인 긴장 완화를 요구한다."></textarea>
+              <div class="button-grid"><button data-action="statement">공식 성명 · 0AP</button><button data-action="treaty">협정 제안 · 1AP</button><button data-action="aid">경제 원조 · 1AP</button><button data-action="sanction">제재 · 1AP</button></div>
+            </div><div id="lastOutcome" class="outcome-box hidden"></div>
+            <div id="privateTab" class="tab-panel"><label>비밀 메시지 대상</label><select id="privateTarget"></select><label>전문 내용</label><textarea id="privateMessage" maxlength="300" placeholder="선택한 국가에게만 보입니다."></textarea><button id="sendPrivateBtn" class="primary">암호 전문 전송 · 0AP</button><div id="privateInbox" class="private-inbox"></div></div>
+            <div id="militaryTab" class="tab-panel"><label>대상 국가</label><select id="militaryTarget"></select><div class="military-actions"><button data-action="deploy">국경 병력 증강 · 1AP</button><button data-action="warning">최후통첩 · 1AP</button><button data-action="war" class="danger">전쟁 선포 · 2AP</button></div></div>
+          </article>
+
+          <article class="panel"><div class="section-title"><div><p class="eyebrow">WORLD FEED</p><h2>국제 뉴스 / 외교 기록</h2></div></div><div id="worldFeed" class="feed"></div></article>
+        </section>
+
+        <aside class="panel rightbar"><p class="eyebrow">WORLD STATES</p><h2>국가 현황</h2><div id="worldStates"></div><hr><p class="eyebrow">VICTORY</p><h3>내 목표</h3><div id="liveChecklist" class="checklist"></div></aside>
+      </div>
+    </section>
+
+    <section id="resultScreen" class="screen">
+      <div class="result-wrap">
+        <article class="panel result-hero"><p class="eyebrow">FINAL ASSESSMENT</p><h2 id="resultTitle">게임 종료</h2><p id="resultSummary" class="lead"></p></article>
+        <div class="result-grid">
+          <article class="panel"><p class="eyebrow">YOUR OUTCOME</p><h2>국가 목표 체크리스트</h2><div id="resultChecklist" class="checklist"></div></article>
+          <article class="panel"><p class="eyebrow">MULTI-DIMENSIONAL EVALUATION</p><h2>성과 분석</h2><div id="resultMetrics"></div></article>
+          <article class="panel"><p class="eyebrow">THEORY INTERPRETATION</p><h2>국제정치 이론 해석</h2><p id="theoryAnalysis"></p></article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="majorOverlay" class="major-overlay hidden"><div id="majorOverlayCard" class="major-card"><p id="majorEyebrow" class="eyebrow">OFFICIAL</p><h2 id="majorTitle">주요 사건</h2><p id="majorBody"></p><button id="closeMajorBtn">확인</button></div></div>
+  <div id="toast" class="toast"></div>
+</div>
+<script type="module" src="./app.js"></script>
+</body></html>
