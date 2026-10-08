@@ -17,6 +17,7 @@ out=await api(0,{type:'start',code});assert.equal(out.room.status,'playing');ass
 const decisions=await Promise.all([0,1,2,3].map(n=>api(n,{type:'choice',code,choice:1,requestId:`choice-${n}`})));for(const x of decisions)assert.equal(x.status,200,JSON.stringify(x));
 const duplicate=await Promise.all([1,2,3,4].map(()=>api(0,{type:'action',code,action:'economy',requestId:'same-spend'})));for(const x of duplicate)assert.equal(x.status,200,JSON.stringify(x));out=await api(0);assert.equal(out.room.jobs.filter(x=>x.action==='economy').length,1);
 await api(1,{type:'action',code,action:'message',target:2,text:'PRIVATE_TEST'});
+await new Promise(resolve=>setTimeout(resolve,5200));
 assert((await api(1)).room.logs.some(l=>l.text.includes('PRIVATE_TEST')));assert((await api(2)).room.logs.some(l=>l.text.includes('PRIVATE_TEST')));assert(!(await api(0)).room.logs.some(l=>l.text.includes('PRIVATE_TEST')));assert(!(await api(3)).room.logs.some(l=>l.text.includes('PRIVATE_TEST')));
 const unauth=await mf.dispatchFetch(`https://game.test/api/game?code=${code}`);assert.equal((await unauth.json()).room,null);
 const wrongOrigin=await mf.dispatchFetch('https://game.test/api/game',{method:'POST',headers:{'Content-Type':'application/json',origin:'https://other.test',cookie:sessions[0]},body:JSON.stringify({type:'action',code,action:'support'})});assert.equal(wrongOrigin.status,403);
@@ -33,13 +34,20 @@ for(const nations of [[3,1],[2,0,3]]){
  small=await api(0,{type:'start',code:smallCode});assert.equal(small.status,200,JSON.stringify(small));assert.equal(small.room.status,'playing');assert.equal(small.room.players.length,nations.length);
  await Promise.all(nations.map((_,i)=>api(i,{type:'choice',code:smallCode,choice:1})));
  const absent=[0,1,2,3].find(n=>!nations.includes(n));assert.equal((await api(0,{type:'action',code:smallCode,action:'aid',target:absent})).status,400);
- assert.equal((await api(0,{type:'action',code:smallCode,action:'message',target:nations[1],text:'SMALL_PRIVATE'})).status,200);assert((await api(1)).room.logs.some(l=>l.text.includes('SMALL_PRIVATE')));if(nations.length===3)assert(!(await api(2)).room.logs.some(l=>l.text.includes('SMALL_PRIVATE')));
+ assert.equal((await api(0,{type:'action',code:smallCode,action:'message',target:nations[1],text:'SMALL_PRIVATE'})).status,200);await new Promise(resolve=>setTimeout(resolve,5200));assert((await api(1)).room.logs.some(l=>l.text.includes('SMALL_PRIVATE')));if(nations.length===3)assert(!(await api(2)).room.logs.some(l=>l.text.includes('SMALL_PRIVATE')));
  assert.equal((await api(4,{type:'join',code:smallCode,name:'late'})).status,400);
  const stored=await db.prepare('SELECT state FROM game_rooms WHERE code = ?').bind(smallCode).first();const game=JSON.parse(stored.state);game.clock-=901000;game.deadline-=901000;await db.prepare('UPDATE game_rooms SET state = ? WHERE code = ?').bind(JSON.stringify(game),smallCode).run();
  small=await api(0);assert.equal(small.room.status,'finished');assert.equal(small.room.scores.length,nations.length);assert.equal(small.room.news.length,5);assert(small.room.news.every(n=>n.impacts.length===nations.length));
 }
 console.log('PASS: Worker/D1 2- and 3-player start gates, actual participants, private messages, absent-target rejection, 10-turn results and news');
 const page=await mf.dispatchFetch('https://game.test/');assert.equal(page.status,200);assert((await page.text()).includes('긴장의 시대'));
+for(let i=0;i<12;i++){const image=await mf.dispatchFetch(`https://game.test/policy-${i}.webp`);assert.equal(image.status,200);}
 const art=await mf.dispatchFetch('https://game.test/nations.webp');assert.equal(art.status,200);assert(art.headers.get('content-type')?.includes('image/webp'));
 console.log('PASS: real Worker + D1: concurrent joins/selects/choices, single-charge idempotency, server sessions and reconnect, private message isolation, forbidden origin, 10 rounds, SSR route');
-}finally{await mf.dispose();}
+}finally{
+ // A workerd teardown can retain handles after every assertion has passed.
+ let timer;
+ await Promise.race([mf.dispose(),new Promise(resolve=>{timer=setTimeout(resolve,5000);})]);
+ if(timer)clearTimeout(timer);
+}
+process.exit(0);
