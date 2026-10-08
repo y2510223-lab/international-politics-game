@@ -12,3 +12,97 @@
 
 /* Keep actionable content readable across viewports. */
 .action-button p,.choice-grid p,.offer p{font-size:14px}.choice-grid small,.nation-intro-grid .intro-nation span{font-size:12px}.description{font-size:14px}.map-pin small{font-size:12px}.intro-nation .nation-art{height:110px}
+
+/* Four national command rooms: the same controls, distinct national atmosphere. */
+main[data-nation]{min-height:100vh;position:relative;isolation:isolate}
+main[data-nation]::before{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;background:var(--country-bg,#101820);transition:background .5s}
+main[data-nation="0"]{--country-bg:radial-gradient(ellipse at 20% 5%,#512a32 0,#221c26 50%,#151b25 100%);--country-panel:#231f29}
+main[data-nation="1"]{--country-bg:radial-gradient(ellipse at 70% 0%,#173f68 0,#132840 55%,#101d32 100%);--country-panel:#142a40}
+main[data-nation="2"]{--country-bg:radial-gradient(ellipse at 15% 0%,#5a3d20 0,#30281f 50%,#211f22 100%);--country-panel:#2c2823}
+main[data-nation="3"]{--country-bg:radial-gradient(ellipse at 65% 0%,#194c47 0,#143631 50%,#15262c 100%);--country-panel:#19332f}
+main[data-nation] .panel{background:var(--country-panel,#17222d)}
+.living-map{overflow:visible!important;background:#13212d;position:relative}
+.living-map .map-heading{position:relative;top:auto;left:auto;padding:14px 16px;display:flex;justify-content:space-between;border-bottom:1px solid #344553}
+.map-canvas{position:relative;height:380px;width:100%;overflow:hidden}
+.map-canvas>svg{position:absolute;inset:0;width:100%;height:100%}
+.map-canvas .map-pin{z-index:2;max-width:140px}
+.map-canvas .map-pin strong{font-size:14px}
+.map-canvas .map-pin small{font-size:12px}
+.citizens{position:absolute;transform:translate(-50%,-50%);z-index:3;pointer-events:none;color:var(--nation)}
+.citizen-icons{display:flex;gap:1px;filter:drop-shadow(0 2px 3px #000)}
+.citizen-icons svg{width:21px;height:26px;stroke-width:2.4;fill:color-mix(in srgb,var(--nation) 20%,transparent)}
+.speaking .citizen-icons svg:nth-child(2){animation:citizen-hop .7s ease 2}
+.citizen-speech{position:absolute;width:190px;bottom:34px;left:50%;transform:translateX(-50%);background:#fff8e6;color:#282b32;border:2px solid #bfb9a9;border-radius:12px;padding:10px 12px;box-shadow:0 6px 20px #0006;animation:bubble-in .25s ease}
+.citizen-speech::after{content:'';position:absolute;left:calc(50% - 5px);bottom:-8px;width:12px;height:12px;background:#fff8e6;transform:rotate(45deg);border-right:2px solid #bfb9a9;border-bottom:2px solid #bfb9a9}
+.citizen-speech b{font-size:12px;display:block;margin-bottom:4px;color:#665c4b}
+.citizen-speech span{font-size:14px;line-height:1.5;display:block;word-break:keep-all}
+.citizen-speech.urgent{border-color:#d19b43;box-shadow:0 0 0 3px #eac16d44,0 8px 25px #0008}
+.relation-legend{display:flex;flex-wrap:wrap;justify-content:center;gap:9px 16px;padding:11px;border-top:1px solid #354754;font-size:12px;color:#bdcbd5}
+.relation-legend span{display:flex;align-items:center;gap:6px}
+.relation-legend i{width:26px;border-top:2px solid #9aaabd}
+.relation-legend .legend-중립{border-top-style:dotted}.relation-legend .legend-우호{border-color:#75c6ff}.relation-legend .legend-협력{border-top:5px double #66e5b4}.relation-legend .legend-긴장{border-color:#ffbf60;border-top-style:dashed}.relation-legend .legend-충돌{border-color:#ff6471;border-top:3px dotted #ff6471}
+.relation-summary{padding:0 12px 12px;display:flex;gap:4px 12px;flex-wrap:wrap;justify-content:center;color:#a8bbcb;font-size:12px}
+.relation-summary b{color:#e6edf3;font-weight:500}
+.relation-conflict{animation:border-conflict 3s linear infinite}
+@keyframes border-conflict{to{stroke-dashoffset:-24}}
+@keyframes citizen-hop{50%{transform:translateY(-4px)}}
+@keyframes bubble-in{from{opacity:0;translate:0 7px}to{opacity:1;translate:0 0}}
+@media(min-width:1500px){.main-command .living-map{max-height:none}}
+
+/* Folded editions open into an illustrated, nation-specific newspaper. */
+.press-desk{padding:22px!important;min-width:0}
+.press-desk .section-heading h2{font-size:16px;gap:8px}
+.press-masthead{font-family:Georgia,'Malgun Gothic',serif;font-size:27px;font-weight:900;border-top:3px double currentColor;border-bottom:1px solid currentColor;text-align:center;padding:10px 0;margin-bottom:18px;letter-spacing:-.6px}
+.press-masthead small{display:block;font-family:Arial,sans-serif;font-size:12px;font-weight:400;letter-spacing:2px;margin-top:4px}
+button.newspaper-button{display:flex;width:100%;text-align:left;padding:22px;align-items:center;gap:20px;min-height:140px;background:linear-gradient(100deg,#eee8d4 0%,#fffaea 49%,#dad3be 50%,#f9f0d8 52%,#f9f0d8 100%);border:1px solid #b9b29e;color:#282927;box-shadow:4px 5px 0 #0003;transform:rotate(-1deg);border-radius:2px}
+button.newspaper-button:hover:enabled{background:#fff8e5;color:#141916;transform:rotate(0deg) translateY(-2px)}
+.newspaper-button>svg{flex-shrink:0}
+.newspaper-button>span{display:grid;gap:5px;min-width:0}
+.newspaper-button small{font-size:12px;text-transform:uppercase;color:#795634}
+.newspaper-button strong{font-family:Georgia,'Malgun Gothic',serif;font-size:18px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.newspaper-button em{font-style:normal;font-size:14px;text-decoration:underline;text-underline-offset:4px}
+.newspaper-button.unread{animation:paper-arrive .5s ease}
+.press-archive{margin-top:22px;max-height:185px;overflow:auto;display:grid;gap:6px}
+.press-archive>button{background:transparent!important;border:0!important;border-bottom:1px solid #82929b55!important;justify-content:start!important;padding:10px 0!important;border-radius:0!important;font-size:14px!important;text-align:left}
+.press-archive span{color:#aebfcb;font-size:12px;white-space:nowrap}.press-archive b{font-weight:500}.press-archive small{margin-left:auto;color:#e2b862;font-size:12px}
+.press-note{font-size:12px;color:#aebdc5;margin-top:15px}
+.press-desk.press-mono .press-masthead{color:#e7e7e3}.press-desk.press-digital .press-masthead{color:#80d5ff;font-family:monospace;letter-spacing:2px}.press-desk.press-paper .press-masthead{color:#e4c18a}.press-desk.press-journal .press-masthead{color:#a5e5c8}
+.press-sheet[data-slot=dialog-content]{width:min(940px,calc(100vw - 24px));max-width:940px!important;max-height:90dvh;overflow-y:auto;display:block!important;border-radius:2px;padding:22px 28px;gap:0;box-shadow:0 30px 100px #000a;color:#22251f;background:#f1ecdc;animation:unfold-paper .32s ease;--ink:#262924;--paper:#f1ecdc}
+.sheet-header{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid var(--ink);font-size:14px;padding-bottom:9px;margin-bottom:9px}
+button.paper-close{background:transparent!important;border:1px solid currentColor!important;color:inherit!important;border-radius:2px!important;padding:6px 12px!important;font-size:14px!important}
+.sheet-title{font-family:Georgia,'Malgun Gothic',serif;font-size:clamp(25px,4vw,43px)!important;text-align:center;font-weight:900;margin:10px 0 6px;letter-spacing:-1px}
+.sheet-subtitle{font-size:13px!important;color:inherit!important;text-align:center;padding:0 0 14px;border-bottom:4px double var(--ink);margin-bottom:20px}
+.sheet-stories{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.sheet-stories article{min-width:0;border-bottom:1px solid #535d5866;padding-bottom:16px}
+.sheet-stories .lead-story{grid-column:span 2;display:grid;grid-template-columns:1fr 1fr;gap:22px;align-items:center;border-bottom:3px double var(--ink);padding-bottom:22px}
+.press-art{aspect-ratio:1.65;background-size:cover;background-position:center;background-repeat:no-repeat;border:1px solid #4445}
+.lead-story .press-art{aspect-ratio:1.15}
+.story-copy>span{display:inline-block;font-size:12px;font-weight:700;margin:10px 0 5px;border-bottom:2px solid currentColor;letter-spacing:1px}
+.story-copy h3{font-family:Georgia,'Malgun Gothic',serif;font-size:21px;line-height:1.4;font-weight:900;margin:0 0 9px;word-break:keep-all}
+.lead-story h3{font-size:28px}
+.story-copy p{font-size:16px;line-height:1.6;margin:0;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;word-break:normal}
+.sheet-footer{color:inherit!important;font-size:12px;margin-top:17px;padding:8px 0 0;border-top:0;display:block;text-align:center;opacity:.75}
+.press-sheet.press-mono{background:#eeeeea;--ink:#252525;filter:none}.press-mono .press-art{filter:grayscale(1) contrast(1.08)}
+.press-sheet.press-paper{background:#ead5ad;--ink:#523d23;color:#422f1e;background-image:repeating-linear-gradient(0deg,#69492706 0px,#69492706 1px,transparent 1px,transparent 4px)}
+.press-paper .press-art{filter:sepia(.4)}
+.press-sheet.press-digital{background:#081c30;--ink:#65baf6;color:#e1f2ff;border:1px solid #4c9dd1;border-radius:12px;box-shadow:0 0 70px #2c96e633,0 20px 100px #000}
+.press-digital .sheet-title{font-family:monospace;letter-spacing:3px;color:#76d4ff}.press-digital .story-copy h3{font-family:Arial,'Malgun Gothic',sans-serif}.press-digital .story-copy>span{color:#74d3ff}.press-digital .press-art{border-radius:5px}
+.press-sheet.press-journal{background:#edf1e6;--ink:#226151;color:#20483b}.press-journal .sheet-title{color:#155343}.press-journal .story-copy>span{color:#1b6954}
+@keyframes unfold-paper{from{opacity:0;scale:.93}to{opacity:1;scale:1}}
+@keyframes paper-arrive{from{opacity:0;translate:0 12px}to{opacity:1;translate:0 0}}
+
+/* Effects stay in the command UI: newspaper copy never shows stat deltas. */
+.stat{position:relative;border-radius:5px}.stat-rise{animation:stat-rise 1.2s ease 2}.stat-fall{animation:stat-fall 1.2s ease 2}
+.stat-delta{position:absolute;right:0;top:-10px;font-size:17px;font-style:normal;font-weight:800;text-shadow:0 2px 6px #000;background:#132526;border:1px solid currentColor;padding:0 6px;border-radius:4px;animation:delta-float .4s ease}
+.stat-rise .stat-delta{color:#9bf5c4}.stat-fall .stat-delta{color:#ff929b;background:#342329}
+.change-notice{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);max-width:calc(100vw - 24px);width:max-content;z-index:45;background:#11232ff2;border:1px solid #8ba8b8;box-shadow:0 5px 30px #0009;border-radius:9px;padding:13px 20px;pointer-events:none;animation:delta-float .3s ease}
+.change-notice>strong{display:flex;justify-content:center;align-items:center;gap:8px;font-size:14px;color:#e9d496}.change-notice>div{display:flex;justify-content:center;gap:7px 16px;flex-wrap:wrap;margin-top:5px;font-size:15px}
+@keyframes stat-rise{30%{box-shadow:0 0 0 2px #7ce4b5;background:#37796366}100%{box-shadow:none}}
+@keyframes stat-fall{30%{box-shadow:0 0 0 2px #ff9a9d;background:#914c5566}100%{box-shadow:none}}
+@keyframes delta-float{from{opacity:0;translate:0 10px}to{opacity:1;translate:0 0}}
+.pandemic-warning{position:fixed;inset:0;z-index:48;pointer-events:none;box-shadow:inset 0 0 55px 12px #e1684877;animation:health-alert 2.4s ease-in-out 3}
+.pandemic-warning>div{position:absolute;top:16px;left:50%;transform:translateX(-50%);width:min(440px,calc(100vw - 24px));background:#3c201cf5;border:2px solid #eea174;color:#ffe7c6;padding:14px 20px;display:grid;grid-template-columns:28px 1fr;gap:4px 12px;border-radius:8px}
+.pandemic-warning svg{grid-row:span 2;align-self:center}.pandemic-warning strong{font-size:20px}.pandemic-warning span{font-size:14px}
+@keyframes health-alert{0%,100%{opacity:0}25%,65%{opacity:1}}
+@media(max-width:640px){.map-canvas{height:360px}.living-map .map-heading{font-size:14px}.map-canvas .map-pin strong{font-size:12px}.map-canvas .map-pin small{font-size:11px}.map-canvas .map-pin{padding:5px!important;min-width:70px!important}.citizen-icons svg{width:16px;height:22px}.citizen-speech{width:142px;padding:8px}.citizen-speech span{font-size:13px}.citizen-speech b{font-size:11px}.relation-legend{gap:7px 10px}.relation-summary{font-size:12px}.press-desk{padding:17px!important}.press-masthead{font-size:23px}.press-sheet[data-slot=dialog-content]{padding:14px 17px}.sheet-stories{grid-template-columns:1fr;gap:16px}.sheet-stories .lead-story{grid-column:auto;display:block}.sheet-stories .press-art{aspect-ratio:1.9}.story-copy h3,.lead-story h3{font-size:21px}.story-copy p{font-size:16px}.sheet-title{font-size:27px!important}.sheet-header{font-size:12px}.newspaper-button strong{font-size:16px}.change-notice{bottom:10px;padding:10px 14px}.national-content>.stat .stat-delta{font-size:14px;top:-4px;right:45px}}
+@media(prefers-reduced-motion:reduce){.pandemic-warning{animation:none;box-shadow:none}.pandemic-warning>div{border-color:#d8aa7c}*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
