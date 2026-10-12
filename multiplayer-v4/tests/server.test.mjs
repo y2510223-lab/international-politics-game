@@ -40,6 +40,28 @@ for(const nations of [[3,1],[2,0,3]]){
  small=await api(0);assert.equal(small.room.status,'finished');assert.equal(small.room.scores.length,nations.length);assert.equal(small.room.news.length,5);assert(small.room.news.every(n=>n.impacts.length===nations.length));
 }
 console.log('PASS: Worker/D1 2- and 3-player start gates, actual participants, private messages, absent-target rejection, 10-turn results and news');
+// Host AI configuration, join clamping, persisted bot decisions and catch-up.
+sessions.fill('');
+let aiRoom=await api(0,{type:'create',name:'AI-host'});const aiCode=aiRoom.room.code;
+await api(0,{type:'select',code:aiCode,nation:3});await api(0,{type:'ready',code:aiCode});
+assert.equal((await api(0,{type:'ai',code:aiCode,aiCount:3})).room.aiCount,3);
+await api(1,{type:'join',code:aiCode,name:'AI-guest'});
+assert.equal((await api(0)).room.aiCount,2);
+assert.equal((await api(1,{type:'ai',code:aiCode,aiCount:0})).status,400);
+assert.equal((await api(0,{type:'ai',code:aiCode,aiCount:3})).status,400);
+await api(1,{type:'leave',code:aiCode});await api(0,{type:'ai',code:aiCode,aiCount:3});
+aiRoom=await api(0,{type:'start',code:aiCode});assert.equal(aiRoom.status,200);assert.equal(aiRoom.room.players.filter(p=>p.isAI).length,3);
+assert.equal((await api(0,{type:'ai',code:aiCode,aiCount:0})).status,400);
+let aiStored=JSON.parse((await db.prepare('SELECT state FROM game_rooms WHERE code = ?').bind(aiCode).first()).state);
+aiStored.clock-=6000;aiStored.deadline-=6000;aiStored.nextAI-=6000;
+await db.prepare('UPDATE game_rooms SET state = ? WHERE code = ?').bind(JSON.stringify(aiStored),aiCode).run();
+aiRoom=await api(0);assert(aiRoom.room.players.filter(p=>p.isAI).every(p=>p.choice!==null&&p.online));assert.equal(aiRoom.room.players.find(p=>p.isMe).choice,null);assert(aiRoom.room.players.every(p=>!p.id));
+aiStored=JSON.parse((await db.prepare('SELECT state FROM game_rooms WHERE code = ?').bind(aiCode).first()).state);
+assert(aiStored.jobs.some(j=>aiStored.players.some(p=>p.isAI&&p.nation===j.actor)));
+aiStored.clock-=901000;aiStored.deadline-=901000;aiStored.nextAI-=901000;aiStored.jobs=aiStored.jobs.map(j=>({...j,start:j.start-901000,end:j.end-901000}));
+await db.prepare('UPDATE game_rooms SET state = ? WHERE code = ?').bind(JSON.stringify(aiStored),aiCode).run();
+aiRoom=await api(0);assert.equal(aiRoom.room.status,'finished');assert.equal(aiRoom.room.scores.length,4);assert.equal(aiRoom.room.news.length,5);
+console.log('PASS: Worker/D1 host AI controls, solo + 3 AI, join capacity, persisted decisions, reconnect and final results');
 const page=await mf.dispatchFetch('https://game.test/');assert.equal(page.status,200);assert((await page.text()).includes('긴장의 시대'));
 for(let i=0;i<12;i++){const image=await mf.dispatchFetch(`https://game.test/policy-${i}.webp`);assert.equal(image.status,200);}
 const art=await mf.dispatchFetch('https://game.test/nations.webp');assert.equal(art.status,200);assert(art.headers.get('content-type')?.includes('image/webp'));

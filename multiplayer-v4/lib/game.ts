@@ -47,9 +47,9 @@ export const ACTIONS: ActionDef[] = [
  {id:'support',name:'민생 지원',category:'domestic',cost:25,seconds:26,description:'국민 지지율 +15'},
  {id:'infrastructure',name:'기반 시설 건설',category:'domestic',cost:32,seconds:42,description:'인프라 +16 · 경제 +4'}
 ];
-export type Player = {id:string;name:string;nation:number;ready:boolean;lastSeen:number;stats:Stats;money:number;choice:number|null;used:Record<string,number>;history:Record<string,number>;prepared?:Record<string,number>;deaths?:number;unemployed?:number;eventLosses?:Record<string,{deaths:number;unemployed:number}>};
-export function canStart(players: Pick<Player, 'nation'|'ready'>[]) {
- return players.length>=2 && players.length<=4 && players.every(p=>p.ready&&Number.isInteger(p.nation)&&p.nation>=0&&p.nation<NATIONS.length) && new Set(players.map(p=>p.nation)).size===players.length;
+export type Player = {isAI?:boolean;id:string;name:string;nation:number;ready:boolean;lastSeen:number;stats:Stats;money:number;choice:number|null;used:Record<string,number>;history:Record<string,number>;prepared?:Record<string,number>;deaths?:number;unemployed?:number;eventLosses?:Record<string,{deaths:number;unemployed:number}>};
+export function canStart(players: Pick<Player, 'nation'|'ready'>[], aiCount=0) {
+ return Number.isInteger(aiCount) && aiCount>=0 && players.length>=1 && players.length+aiCount>=2 && players.length+aiCount<=4 && players.every(p=>p.ready&&Number.isInteger(p.nation)&&p.nation>=0&&p.nation<NATIONS.length) && new Set(players.map(p=>p.nation)).size===players.length;
 }
 export type Job = {id:string;actor:number;target:number;action:string;start:number;end:number;text:string;choice?:number;topic?:string};
 export type Offer = {id:string;from:number;to:number;kind:string;expires:number;status:'pending'|'accepted'|'rejected'|'expired';topic?:string};
@@ -59,7 +59,7 @@ export type Edition = {nation:number;articles:Article[];figures?:{deaths:number;
 export type News = {id?:string;round:number;title:string;body:string;impacts:{nation:number;delta:number;reason:string}[];editions?:Edition[];breaking?:boolean;at?:number};
 export type PairRelation = {a:number;b:number;value:number;label:string;reason:string};
 export type Reaction = {id:string;nation:number;text:string;at:number;urgent:boolean;privateTo?:number[];speaker?:string;batch?:string};
-export type Room = {code:string;host:string;status:'lobby'|'playing'|'finished';players:Player[];round:number;duration:number;deadline:number;clock:number;event:number;tension:number;jobs:Job[];offers:Offer[];logs:Log[];news:News[];seed:number;processed:string[];created:number;relations?:PairRelation[];reactions?:Reaction[];bulletins?:News[];nextEvent?:number;pandemicAt?:number;pressCooldown?:Record<string,number>;boycotts?:{from:number;target:number;until:number}[]};
+export type Room = {aiCount?:number;nextAI?:number;code:string;host:string;status:'lobby'|'playing'|'finished';players:Player[];round:number;duration:number;deadline:number;clock:number;event:number;tension:number;jobs:Job[];offers:Offer[];logs:Log[];news:News[];seed:number;processed:string[];created:number;relations?:PairRelation[];reactions?:Reaction[];bulletins?:News[];nextEvent?:number;pandemicAt?:number;pressCooldown?:Record<string,number>;boycotts?:{from:number;target:number;until:number}[]};
 export class GameError extends Error {}
 const clamp=(n:number,min=0,max=100)=>Math.max(min,Math.min(max,n));
 function assert(ok:unknown,text:string):asserts ok {if(!ok)throw new GameError(text);}
@@ -125,15 +125,17 @@ function resolveOffer(r:Room,o:Offer,accept:boolean,expired=false){const before=
  if(o.kind==='ultimatum'&&!accept)changeRelation(r,o.from,o.to,-10,'통첩 거부');
  recordChanges(r,before,accept?'외교 제안 수락':'외교 제안 거절',o.kind==='backchannel'?[o.from,o.to]:undefined);
 }
-export function tick(r:Room,now:number){ensureNarrative(r);if(r.status!=='playing')return;r.clock=Math.min(r.clock,now);let safety=0;while(r.clock<now&&r.status==='playing'&&safety++<500){const due=r.jobs.length?Math.min(...r.jobs.map(j=>j.end)):Infinity;const next=Math.min(now,r.deadline,due);const dt=Math.max(0,(next-r.clock)/1000);for(const p of r.players)p.money=clamp(p.money+income(p,r)*dt,0,9999);r.clock=next;const done=r.jobs.filter(j=>j.end<=next).sort((a,b)=>a.end-b.end||a.start-b.start||a.id.localeCompare(b.id));r.jobs=r.jobs.filter(j=>j.end>next);for(const j of done)resolveJob(r,j);if(next>=r.deadline){for(const p of r.players)if(p.choice===null){p.choice=-1;effect(p,{support:-3});log(r,`${short(p.nation)}이 정책을 자동 보류했습니다. 국민 지지가 소폭 하락합니다.`,p.nation,'choice');}for(const o of r.offers)if(o.status==='pending'&&o.expires<=next)resolveOffer(r,o,false,true);if(r.round%2===0)makeNews(r);if(r.round>=10){const remaining=[...r.jobs].sort((a,b)=>a.end-b.end);r.jobs=[];for(const j of remaining)resolveJob(r,j);for(const o of r.offers)if(o.status==='pending')resolveOffer(r,o,false,true);r.status='finished';log(r,'10턴이 종료되었습니다. 국가별 종합 평가를 확인하세요.');}else {r.round++;r.deadline+=r.duration*1000;beginRound(r);}}}}
-export type Command = {type:string;requestId?:string;name?:string;nation?:number;duration?:number;round?:number;choice?:number;action?:string;target?:number;text?:string;offerId?:string;accept?:boolean;topic?:string};
-export function command(r:Room,id:string,c:Command,now:number){tick(r,now);let p=r.players.find(p=>p.id===id);if(c.type==='join'){if(p){p.lastSeen=now;return;}assert(r.status==='lobby','게임이 이미 시작되었습니다.');assert(r.players.length<4,'이미 4명이 참가한 방입니다.');r.players.push(newPlayer(id,cleanName(c.name),now));return;}assert(p,'방에 먼저 참가해 주세요.');p.lastSeen=now;if(c.requestId&&r.processed.includes(`${id}:${c.requestId}`))return;
+export function tick(r:Room,now:number){ensureNarrative(r);if(r.status!=='playing')return;r.clock=Math.min(r.clock,now);let safety=0;while(r.clock<now&&r.status==='playing'&&safety++<2000){const due=r.jobs.length?Math.min(...r.jobs.map(j=>j.end)):Infinity;const next=Math.min(now,r.deadline,due,r.nextAI??Infinity);const dt=Math.max(0,(next-r.clock)/1000);for(const p of r.players)p.money=clamp(p.money+income(p,r)*dt,0,9999);r.clock=next;const done=r.jobs.filter(j=>j.end<=next).sort((a,b)=>a.end-b.end||a.start-b.start||a.id.localeCompare(b.id));r.jobs=r.jobs.filter(j=>j.end>next);for(const j of done)resolveJob(r,j);if(next>=r.deadline){for(const p of r.players)if(p.choice===null){p.choice=-1;effect(p,{support:-3});log(r,`${short(p.nation)}이 정책을 자동 보류했습니다. 국민 지지가 소폭 하락합니다.`,p.nation,'choice');}for(const o of r.offers)if(o.status==='pending'&&o.expires<=next)resolveOffer(r,o,false,true);if(r.round%2===0)makeNews(r);if(r.round>=10){const remaining=[...r.jobs].sort((a,b)=>a.end-b.end);r.jobs=[];for(const j of remaining)resolveJob(r,j);for(const o of r.offers)if(o.status==='pending')resolveOffer(r,o,false,true);r.status='finished';log(r,'10턴이 종료되었습니다. 국가별 종합 평가를 확인하세요.');}else {r.round++;r.deadline+=r.duration*1000;beginRound(r);}}if(r.status==='playing'&&r.nextAI!==undefined&&r.clock>=r.nextAI){r.nextAI=r.clock+5000;runAI(r);}}}
+export type Command = {aiCount?:number;type:string;requestId?:string;name?:string;nation?:number;duration?:number;round?:number;choice?:number;action?:string;target?:number;text?:string;offerId?:string;accept?:boolean;topic?:string};
+export function command(r:Room,id:string,c:Command,now:number){tick(r,now);applyCommand(r,id,c,now);}
+function applyCommand(r:Room,id:string,c:Command,now:number){let p=r.players.find(p=>p.id===id);if(c.type==='join'){if(p){p.lastSeen=now;return;}assert(r.status==='lobby','게임이 이미 시작되었습니다.');assert(r.players.length<4,'이미 4명이 참가한 방입니다.');r.players.push(newPlayer(id,cleanName(c.name),now));r.aiCount=Math.min(r.aiCount||0,4-r.players.length);return;}assert(p,'방에 먼저 참가해 주세요.');p.lastSeen=now;if(c.requestId&&r.processed.includes(`${id}:${c.requestId}`))return;
  if(['choice','action'].includes(c.type)&&c.round!==undefined)assert(c.round===r.round,'턴이 바뀌었습니다. 현재 정책과 사건을 확인한 뒤 다시 선택해 주세요.');
  if(c.type==='select'){assert(r.status==='lobby','대기실에서만 국가를 선택할 수 있습니다.');assert(Number.isInteger(c.nation)&&c.nation!>=0&&c.nation!<4,'국가를 선택해 주세요.');assert(!r.players.some(x=>x.id!==id&&x.nation===c.nation),'다른 플레이어가 선택한 국가입니다.');p.nation=c.nation!;p.ready=false;}
  else if(c.type==='ready'){assert(r.status==='lobby'&&p.nation>=0,'국가를 먼저 선택해 주세요.');p.ready=!p.ready;}
+ else if(c.type==='ai'){assert(id===r.host&&r.status==='lobby','방장만 대기실에서 AI 수를 바꿀 수 있습니다.');assert(Number.isInteger(c.aiCount)&&c.aiCount!>=0&&c.aiCount!<=4-r.players.length,'빈자리 수 이내에서 AI 수를 선택해 주세요.');r.aiCount=c.aiCount!;}
  else if(c.type==='duration'){assert(id===r.host&&r.status==='lobby','방장만 대기실에서 시간을 바꿀 수 있습니다.');assert([60,90,120].includes(c.duration!), '60, 90, 120초 중 선택해 주세요.');r.duration=c.duration!;}
  else if(c.type==='leave'){assert(r.status==='lobby','진행 중에는 재접속으로 복귀할 수 있습니다.');r.players=r.players.filter(x=>x.id!==id);if(r.host===id)r.host=r.players[0]?.id||'';}
- else if(c.type==='start'){assert(id===r.host,'방장만 시작할 수 있습니다.');assert(r.status==='lobby'&&canStart(r.players),'2~4명이 참가하고 모두 서로 다른 국가를 선택한 뒤 준비해야 합니다.');r.status='playing';r.round=1;r.clock=now;r.deadline=now+r.duration*1000;for(const x of r.players){x.stats={...NATIONS[x.nation].stats};x.money=NATIONS[x.nation].money;}beginRound(r);}
+ else if(c.type==='start'){assert(id===r.host,'방장만 시작할 수 있습니다.');assert(r.status==='lobby'&&canStart(r.players,r.aiCount||0),'AI 포함 2~4명이 참가하고 사람은 모두 서로 다른 국가를 선택한 뒤 준비해야 합니다.');for(let i=0;i<(r.aiCount||0);i++){const nation=NATIONS.findIndex((_,n)=>!r.players.some(x=>x.nation===n));r.players.push({...newPlayer(`ai:${crypto.randomUUID()}`,`AI · ${short(nation)}`,now),nation,ready:true,isAI:true});}if(r.aiCount)r.nextAI=now+1000;r.status='playing';r.round=1;r.clock=now;r.deadline=now+r.duration*1000;for(const x of r.players){x.stats={...NATIONS[x.nation].stats};x.money=NATIONS[x.nation].money;}beginRound(r);}
  else if(c.type==='choice'){
  assert(r.status==='playing','진행 중인 게임이 아닙니다.');assert(p.choice===null,'이미 이번 턴의 정책을 결정했습니다.');assert(Number.isInteger(c.choice)&&c.choice!>=-1&&c.choice!<3,'정책을 선택하거나 보류해 주세요.');
  if(c.choice===-1){p.choice=-1;log(r,`${short(p.nation)}이 이번 턴의 정책을 보류했습니다.`,p.nation,'choice');voice(r,p.nation,'정책 보류라니! 지켜보자는 사람도, 지금 움직이자는 사람도 있네요.');}
@@ -148,7 +150,7 @@ export function command(r:Room,id:string,c:Command,now:number){tick(r,now);let p
 }
 export function cleanName(name:unknown){assert(typeof name==='string'&&name.trim().length>0&&name.trim().length<=16,'이름은 1~16자로 입력해 주세요.');return name.trim();}
 export function score(p:Player){const s=p.stats;const prosperity=Math.round((s.economy+s.infrastructure)/2),stability=Math.round(s.support),security=Math.round(s.military),diplomacy=Math.round(s.relations),goal=Math.round(s[NATIONS[p.nation].goal]);return {prosperity,stability,security,diplomacy,goal,total:Math.round((prosperity+stability+security+diplomacy)*.2+goal*.2),style:(p.history.war||0)+(p.history.mobilize||0)>(p.history.treatyAccepted||0)+(p.history.statement||0)?'힘과 안보를 우선한 운영':'협력과 내정을 중시한 운영'};}
-export function view(r:Room,id:string,now:number){ensureNarrative(r);const me=r.players.find(p=>p.id===id);assert(me,'방 참가자만 확인할 수 있습니다.');return {code:r.code,status:r.status,round:r.round,duration:r.duration,deadline:r.deadline,serverNow:now,event:r.event,tension:r.tension,isHost:r.host===id,players:r.players.map(p=>({...p,id:undefined,prepared:p.id===id?p.prepared:undefined,isMe:p.id===id,isHost:p.id===r.host,online:now-p.lastSeen<20000,money:Math.floor(p.money),income:income(p,r),used:p.id===id?p.used:{},history:p.id===id||r.status==='finished'?p.history:{}})),jobs:r.jobs.filter(j=>j.actor===me.nation),offers:r.offers.filter(o=>o.kind!=='backchannel'||o.from===me.nation||o.to===me.nation),logs:r.logs.filter(l=>!l.privateTo||l.privateTo.includes(me.nation)).slice(-160).map(l=>l.kind==='message'?l:{...l,text:qualitativeText(l.text)}),news:r.news,bulletins:r.bulletins||[],relations:r.relations||[],reactions:(r.reactions||[]).filter(x=>!x.privateTo||x.privateTo.includes(me.nation)),pandemicAt:r.pandemicAt,boycotts:r.boycotts||[],scores:r.status==='finished'?r.players.map(p=>({nation:p.nation,name:p.name,...score(p)})).sort((a,b)=>b.total-a.total):[]};}
+export function view(r:Room,id:string,now:number){ensureNarrative(r);const me=r.players.find(p=>p.id===id);assert(me,'방 참가자만 확인할 수 있습니다.');return {code:r.code,aiCount:r.aiCount||0,status:r.status,round:r.round,duration:r.duration,deadline:r.deadline,serverNow:now,event:r.event,tension:r.tension,isHost:r.host===id,players:r.players.map(p=>({...p,id:undefined,prepared:p.id===id?p.prepared:undefined,isMe:p.id===id,isHost:p.id===r.host,online:!!p.isAI||now-p.lastSeen<20000,money:Math.floor(p.money),income:income(p,r),used:p.id===id?p.used:{},history:p.id===id||r.status==='finished'?p.history:{}})),jobs:r.jobs.filter(j=>j.actor===me.nation),offers:r.offers.filter(o=>o.kind!=='backchannel'||o.from===me.nation||o.to===me.nation),logs:r.logs.filter(l=>!l.privateTo||l.privateTo.includes(me.nation)).slice(-160).map(l=>l.kind==='message'?l:{...l,text:qualitativeText(l.text)}),news:r.news,bulletins:r.bulletins||[],relations:r.relations||[],reactions:(r.reactions||[]).filter(x=>!x.privateTo||x.privateTo.includes(me.nation)),pandemicAt:r.pandemicAt,boycotts:r.boycotts||[],scores:r.status==='finished'?r.players.map(p=>({nation:p.nation,name:p.name,...score(p)})).sort((a,b)=>b.total-a.total):[]};}
 export type RoomView=ReturnType<typeof view>;
 
 // Narrative state is stored in the room JSON; old rooms receive safe defaults.
@@ -285,3 +287,53 @@ function publicBacklash(r:Room,actor:number,target:number,action:string){
 function solidarity(r:Room,actor:number,target:number){const pair=r.relations?.find(x=>x.a===Math.min(actor,target)&&x.b===Math.max(actor,target));if((pair?.value||0)<15)return;const key=`solidarity:${actor}:${target}`;if(r.pressCooldown![key]&&r.clock-r.pressCooldown![key]<r.duration*1000)return;r.pressCooldown![key]=r.clock;effect(byNation(r,target),{money:6,support:3});voice(r,target,`${short(actor)}의 원조에 시민들까지 모금에 나섰대요. 이런 이웃이라면 믿고 함께해야죠!`,true);publishExtra(r,'이웃을 위한 시민 모금',[{tag:'시민 연대',headline:`${short(actor)}·${short(target)}, 시민이 잇는 우정`,body:'정부의 원조가 자발적인 모금으로 이어졌다. 위기 속에서 오래갈 신뢰가 자란다.',image:4}]);}
 export function jobName(j:Job){return j.action==='policy'?`${CHOICES[j.actor][j.choice!]?.label||'정책'} 시행`:ACTIONS.find(x=>x.id===j.action)?.name||'행동';}
 export function actionDescription(id:string){const lines:Record<string,string>={statement:'국제 관계 개선 · 국민 신뢰 소폭 상승 · 세계 긴장 완화',treaty:'선택한 분야에서 공동 사업을 추진합니다. 상대의 동의와 예산 분담이 필요합니다.',aid:'상대 경제·예산 지원 · 자국 신뢰 개선 · 국내 지지 소폭 하락',sanction:'상대 경제에 큰 압박 · 자국 경제와 신뢰도 손상 · 시민 불매 위험',message:'두 국가에만 전달 · 전송 대기 후 재사용 가능 · 240자 이내',backchannel:'선택한 분야를 비공개로 협력합니다. 제안과 결과는 당사자만 열람합니다.',mobilize:'군사력 상당히 상승 · 지지 소폭 상승 · 국제 신뢰 하락',ultimatum:'양보 시 상대 예산 일부 이전 · 거부 시 긴장 고조 · 불매 운동 위험',war:'양국에 큰 군사·경제·인프라 피해와 인명 피해 · 외교 신뢰 급락',economy:'경제 상당히 상승 · 인프라 소폭 개선 · 실업 완화',support:'국민 지지 크게 상승 · 실업 소폭 완화',infrastructure:'인프라 크게 개선 · 경제 소폭 상승'};return lines[id]||'';}
+
+// Server-side, deterministic score-seeking AI. Uses its own pending work and public
+// state only; no future event lookup, hidden opponent orders, or extra resources.
+const AI_EFFECTS:Record<string,Effect>={
+ statement:{relations:7,support:3},mobilize:{military:13,support:3,relations:-6},
+ economy:{economy:13,infrastructure:3},support:{support:15},infrastructure:{infrastructure:16,economy:4},
+ aid:{relations:10,support:-3}
+};
+function aiScore(p:Player){const s=p.stats;return .1*(s.economy+s.infrastructure)+.2*(s.support+s.military+s.relations+s[NATIONS[p.nation].goal]);}
+function aiProjection(r:Room,p:Player){const projected={...p,stats:{...p.stats}};for(const j of r.jobs.filter(j=>j.actor===p.nation).sort((a,b)=>a.end-b.end||a.start-b.start)){
+ const e=j.action==='policy'?CHOICES[p.nation][j.choice!].effect:AI_EFFECTS[j.action];if(e)effect(projected,{...e,money:0});
+ }return projected;}
+function aiMoneyValue(r:Room){return r.round===10?.015:r.round>=8?.045:.085;}
+function aiValue(r:Room,p:Player,e:Effect){const after={...p,stats:{...p.stats}};effect(after,e);const goal=NATIONS[p.nation].goal,threshold=p.nation===0?65:p.nation===2?60:70;
+ const demand=r.round<10?.6*(Number(after.stats[goal]>=threshold)-Number(p.stats[goal]>=threshold)):0;
+ return aiScore(after)-aiScore(p)+demand+(e.money||0)*aiMoneyValue(r);
+}
+function runAI(r:Room){for(const p of r.players.filter(p=>p.isAI)){
+ // Receiving cooperation costs the same contribution as for a human. Refusing
+ // an ultimatum is better for this game's own-score objective than conceding.
+ for(const offer of r.offers.filter(o=>o.to===p.nation&&o.status==='pending')){
+ const topic=COOPERATION.find(x=>x.id===(offer.topic||'trade'))!;
+ const accept=offer.kind!=='ultimatum'&&p.money>=topic.contribution&&aiValue(r,aiProjection(r,p),{...topic.effect,money:-topic.contribution})>0;
+ applyCommand(r,p.id,{type:'respond',offerId:offer.id,accept},r.clock);
+ }
+ if(p.choice===null){let choice=-1,best=0;const projected=aiProjection(r,p);
+ CHOICES[p.nation].forEach((c,i)=>{if(p.money<Math.max(0,-(c.effect.money||0)))return;const value=aiValue(r,projected,c.effect);if(value>best){best=value;choice=i;}});
+ applyCommand(r,p.id,{type:'choice',choice},r.clock);
+ }
+ if(r.jobs.filter(j=>j.actor===p.nation&&j.action!=='policy').length>=4)continue;
+ const projected=aiProjection(r,p),end=r.deadline+(10-r.round)*r.duration*1000;
+ let best=0,selected:Command|undefined;
+ for(const a of ACTIONS){const cost=price(r,a);if(cost>p.money||r.clock+a.seconds*1000>end||r.jobs.some(j=>j.actor===p.nation&&j.action===a.id))continue;
+ if(AI_EFFECTS[a.id]){
+ const value=aiValue(r,projected,{...AI_EFFECTS[a.id],money:-cost});
+ if(value>best){best=value;selected={type:'action',action:a.id,...(a.target?{target:r.players.find(x=>x.nation!==p.nation)!.nation}:{})};}
+ }else if(a.id==='treaty'){
+ for(const target of r.players.filter(x=>x.nation!==p.nation)){
+ if((p.history[`aiOffer:${target.nation}`]||-10)>r.round-2||r.offers.some(o=>o.status==='pending'&&(o.from===p.nation&&o.to===target.nation||o.from===target.nation&&o.to===p.nation)))continue;
+ for(const topic of COOPERATION){if(target.money<topic.contribution)continue;
+ // Estimate acceptance from visible national needs, without reading target jobs.
+ if(aiValue(r,target,{...topic.effect,money:-topic.contribution})<=0)continue;
+ const value=aiValue(r,projected,topic.effect)*(target.isAI?.9:.65)-cost*aiMoneyValue(r);
+ if(value>best){best=value;selected={type:'action',action:'treaty',target:target.nation,topic:topic.id};}
+ }
+ }
+ }
+ }
+ if(selected){applyCommand(r,p.id,selected,r.clock);if(selected.action==='treaty')p.history[`aiOffer:${selected.target}`]=r.round;}
+}}
