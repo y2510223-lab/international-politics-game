@@ -108,7 +108,7 @@ button.paper-close{background:transparent!important;border:1px solid currentColo
 @media(prefers-reduced-motion:reduce){.pandemic-warning{animation:none;box-shadow:none}.pandemic-warning>div{border-color:#d8aa7c}*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 
 /* A turn opens on a full-screen policy table, with debate attached to the cards. */
-.policy-screen[data-slot=dialog-content]{inset:0!important;top:0!important;left:0!important;transform:none!important;translate:none!important;width:100vw!important;max-width:none!important;height:100dvh!important;max-height:100dvh!important;overflow-y:auto;display:block!important;border:0;border-radius:0;background:radial-gradient(ellipse at 50% 0%,#344657,#111b27 65%);padding:clamp(18px,3vw,44px);color:#eaf0f5;z-index:55}
+.policy-screen[data-slot=dialog-content]{inset:0!important;width:100%!important;max-width:none!important;height:100dvh!important;max-height:100dvh!important;overflow-y:auto;display:block!important;border:0;border-radius:0;background:radial-gradient(ellipse at 50% 0%,#344657,#111b27 65%);padding:clamp(18px,3vw,44px);color:#eaf0f5;z-index:55}
 .policy-screen-header{display:flex;justify-content:space-between;align-items:start;gap:22px;max-width:1600px;margin:0 auto 22px}
 .policy-screen-header [data-slot=dialog-title]{font-size:clamp(24px,2.5vw,38px);line-height:1.4;font-weight:800;margin-bottom:9px}.policy-screen-header [data-slot=dialog-description]{font-size:16px;color:#b2c3d1;max-width:860px}
 .policy-budget{display:flex;align-items:center;white-space:nowrap;gap:8px;color:#f4d995;border:1px solid #7a6745;border-radius:6px;padding:10px 14px;font-size:16px}
