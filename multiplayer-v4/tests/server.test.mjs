@@ -13,8 +13,9 @@ const joins=await Promise.all([1,2,3].map(n=>api(n,{type:'join',code,name:`guest
 const full=await api(4,{type:'join',code,name:'extra'});assert.equal(full.status,400);
 const selects=await Promise.all([0,1,2,3].map(n=>api(n,{type:'select',code,nation:n})));for(const x of selects)assert.equal(x.status,200,JSON.stringify(x));
 await Promise.all([0,1,2,3].map(n=>api(n,{type:'ready',code})));
-out=await api(0,{type:'start',code});assert.equal(out.room.status,'playing');assert.equal(out.room.players.length,4);
+out=await api(0,{type:'start',code});assert.equal(out.room.status,'playing');assert.equal(out.room.players.length,4);assert(out.room.players.every(p=>p.policies.length===3&&p.policies.every(c=>c.id&&c.image&&c.opinions.length===3)));
 const decisions=await Promise.all([0,1,2,3].map(n=>api(n,{type:'choice',code,choice:1,requestId:`choice-${n}`})));for(const x of decisions)assert.equal(x.status,200,JSON.stringify(x));
+const policyState=JSON.parse((await db.prepare('SELECT state FROM game_rooms WHERE code = ?').bind(code).first()).state);assert(policyState.jobs.filter(j=>j.action==='policy').every(j=>j.policy.id===policyState.players.find(p=>p.nation===j.actor).selectedPolicy.id));
 const duplicate=await Promise.all([1,2,3,4].map(()=>api(0,{type:'action',code,action:'economy',requestId:'same-spend'})));for(const x of duplicate)assert.equal(x.status,200,JSON.stringify(x));out=await api(0);assert.equal(out.room.jobs.filter(x=>x.action==='economy').length,1);
 await api(1,{type:'action',code,action:'message',target:2,text:'PRIVATE_TEST'});
 await new Promise(resolve=>setTimeout(resolve,5200));

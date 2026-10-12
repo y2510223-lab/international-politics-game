@@ -23,7 +23,7 @@ for(const [humans,bots] of [[1,1],[1,2],[1,3],[2,1],[2,2],[3,1],[4,0]]){
  assert(p.choice!==null);const old=before.players.find(x=>x.nation===p.nation);
  // Decisions reserve normal costs; no instantaneous policy or action stat gain.
  assert.deepEqual(p.stats,old.stats);
- const spent=r.jobs.filter(j=>j.actor===p.nation).reduce((sum,j)=>sum+(j.action==='policy'?Math.max(0,-(CHOICES[p.nation][j.choice].effect.money||0)):price(r,ACTIONS.find(a=>a.id===j.action))),0);
+ const spent=r.jobs.filter(j=>j.actor===p.nation).reduce((sum,j)=>sum+(j.action==='policy'?Math.max(0,-(j.policy.effect.money||0)):price(r,ACTIONS.find(a=>a.id===j.action),p.nation)),0);
  assert(Math.abs(p.money-(old.money+(.055+p.stats.economy/1200+p.stats.infrastructure/2400+(p.nation===2?.015:0))-spent))<1e-8);
  assert(r.jobs.filter(j=>j.actor===p.nation).every(j=>j.end>r.clock));
  }
@@ -37,8 +37,8 @@ for(let now=t+1700;now<t+900000;now+=1700)tick(fast,now);tick(fast,t+900000);tic
 for(let i=0;i<4;i++){assert.deepEqual(fast.players[i].stats,slow.players[i].stats);assert.deepEqual(fast.players[i].history,slow.players[i].history);assert(Math.abs(fast.players[i].money-slow.players[i].money)<1e-7);}
 // Score weighting and cap-aware policy selection: military-goal AI protects its
 // scarce military stat; when all stats are capped, spending is avoided.
-const strategy=start();const ai=strategy.players.find(p=>p.isAI);ai.stats={economy:100,support:100,military:30,infrastructure:100,relations:100};tick(strategy,t+1000);assert.equal(ai.choice,0);
-const capped=start();const cap=capped.players.find(p=>p.isAI);cap.stats={economy:100,support:100,military:100,infrastructure:100,relations:100};tick(capped,t+1000);assert.equal(cap.choice,-1);assert.equal(capped.jobs.filter(j=>j.actor===cap.nation).length,0);
+const strategy=start();const ai=strategy.players.find(p=>p.isAI);ai.policies=structuredClone(CHOICES[ai.nation]);ai.stats={economy:100,support:100,military:30,infrastructure:100,relations:100};tick(strategy,t+1000);assert.equal(ai.choice,0);
+const capped=start();const cap=capped.players.find(p=>p.isAI);cap.policies=structuredClone(CHOICES[cap.nation]);cap.stats={economy:100,support:100,military:100,infrastructure:100,relations:100};tick(capped,t+1000);assert.equal(cap.choice,-1);assert.equal(capped.jobs.filter(j=>j.actor===cap.nation).length,0);
 // Beneficial offers are accepted; unaffordable or wasteful ones and ultimatums
 // are rejected. Private cooperation remains private to its two participants.
 for(const kind of ['treaty','backchannel','ultimatum']){

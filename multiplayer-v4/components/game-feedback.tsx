@@ -1,7 +1,8 @@
 'use client';
 import {useEffect,useRef,useState} from 'react';
+import {createPortal} from 'react-dom';
 import {AlertTriangle,Sparkles} from 'lucide-react';
-import {RoomView,Stat,STAT_NAMES,changeDegree,Reaction,NATIONS} from '@/lib/game';
+import {RoomView,Stat,STAT_NAMES,changeDegree,Reaction,NATIONS,crisisMarkers} from '@/lib/game';
 export type ChangeFlash={id:string;changes:{stat:Stat;delta:number}[];label:string};
 export function useChangeFlash(room:RoomView|null){
  const previous=useRef<RoomView|null>(null),[flash,setFlash]=useState<ChangeFlash|null>(null),timer=useRef<ReturnType<typeof setTimeout>|null>(null);
@@ -19,12 +20,18 @@ export function useChangeFlash(room:RoomView|null){
 }
 export function ChangeNotice({flash}:{flash:ChangeFlash|null}){return flash&&<div key={flash.id} className="change-notice" role="status"><strong><Sparkles size={18}/>{flash.label}</strong><div>{flash.changes.map(x=><span className={x.delta>0?'positive':'negative'} key={x.stat}>{STAT_NAMES[x.stat]} <b>{changeDegree(x.delta)}</b></span>)}</div></div>;}
 export function PandemicWarning({room}:{room:RoomView|null}){
- const [active,setActive]=useState(false);
- useEffect(()=>{if(!room?.pandemicAt)return;const key=`pandemic-seen:${room.code}:${room.pandemicAt}`;let seen=false;try{seen=!!sessionStorage.getItem(key);}catch{}
-  if(seen||room.serverNow-room.pandemicAt>16000)return;
-  try{sessionStorage.setItem(key,'1');}catch{}setActive(true);const timer=setTimeout(()=>setActive(false),7200);return()=>{clearTimeout(timer);setActive(false);};
- },[room?.code,room?.pandemicAt]);
- return active?<div className="pandemic-warning" role="alert"><div><AlertTriangle/><strong>국제 보건 경보</strong><span>팬데믹 발생 · 각국의 대응이 필요합니다</span></div></div>:null;
+ const me=room?.players.find(p=>p.isMe);
+ const marker=room&&crisisMarkers(room).find(x=>x.nation===me?.nation);
+ const [active,setActive]=useState<NonNullable<typeof marker>|null>(null);
+ const key=marker?`${room?.code}:${marker.id}`:'';
+ useEffect(()=>{
+  if(!marker||!room){setActive(null);return;}
+  const remaining=9000-(room.serverNow-marker.at);
+  if(remaining<=0){setActive(null);return;}
+  setActive(marker);const timer=setTimeout(()=>setActive(null),remaining);
+  return()=>clearTimeout(timer);
+ },[key]);
+ return active?createPortal(<div className="crisis-warning" role="alert"><div className="crisis-warning-label"><AlertTriangle/><strong>{active.kind==='health'?'국제 팬데믹 경보':'자국 기후 재난 경보'}</strong><span>{active.label} · 국민과 기반 시설을 보호하세요</span></div></div>,document.body):null;
 }
 
 export function EdgeVoices({room}:{room:RoomView|null}){
@@ -34,7 +41,7 @@ export function EdgeVoices({room}:{room:RoomView|null}){
   if(room.status!=='playing'||!fresh.length)return;
   const me=room.players.find(x=>x.isMe)?.nation;
   const relevant=[...fresh.filter(x=>x.nation===me),...fresh.filter(x=>x.nation!==me)];const urgent=fresh.some(x=>x.urgent);setVisible(relevant.slice(0,urgent?5:3));
-  if(timer.current)clearTimeout(timer.current);timer.current=setTimeout(()=>setVisible([]),10000);
+  if(timer.current)clearTimeout(timer.current);timer.current=setTimeout(()=>setVisible([]),14000);
  },[room]);
  useEffect(()=>()=>{if(timer.current)clearTimeout(timer.current);},[]);
  return <div className="edge-voices" aria-live="polite">{visible.map((v,i)=><aside key={v.id} className={`edge-bubble edge-${i} ${v.urgent?'urgent':''}`}><button onClick={()=>setVisible(x=>x.filter(y=>y.id!==v.id))} aria-label="국민 반응 닫기">×</button><small>{NATIONS[v.nation].short} · 가상 시민</small><b>{v.speaker||'시민의 목소리'}</b><p>{v.text}</p></aside>)}</div>;
