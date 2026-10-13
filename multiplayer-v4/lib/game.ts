@@ -1,3 +1,143 @@
+// Each policy has its own argument, counterargument and reply. Never substitute
+// a shared topic template: borrowing money and lending it are different choices.
+export const POLICY_DIALOGUE:Record<string,[string,string,string]>={
+ hospitals:[
+  '응급실 대기표가 놀이공원 인기 놀이기구보다 길더군요. 병상과 의료 인력을 함께 늘려서, 아픈 사람이 기다리는 실력부터 늘리는 일은 끝냈으면 합니다.',
+  '침대는 주문하면 오지만 간호사는 택배로 오지 않잖아요. 병상 숫자만 채우고 기존 의료진의 근무표를 고무줄처럼 늘릴까 걱정입니다.',
+  '그래서 채용과 휴식 보장도 병상 확충에 묶자는 거죠. 준공식 리본 자를 손은 많으니, 환자 돌볼 손부터 충분히 확보합시다.'
+ ],
+ quarantine:[
+  '바이러스는 회식 끝나는 시간을 기다려 주지 않더군요. 잠깐 모임을 줄여 병원에 숨 돌릴 틈을 주자는 쪽에 한 표 보탭니다.',
+  '모임은 취소할 수 있어도 가게 월세까지 취소 버튼이 있는 건 아니죠. 문 닫으라는 안내문 옆에 생계 지원 방법도 붙여 주셨으면 해요.',
+  '영업 제한과 보상 기준을 같이 정하면 어떨까요. 방역 수칙만 매일 새로고침되고 지원 날짜는 로딩 중인 상황부터 막아야죠.'
+ ],
+ healthAid:[
+  '방역 물자를 같이 사면 가격 협상도 수월하겠네요. 바이러스가 국경에서 여권을 꺼내는 것도 아닌데, 약 상자끼리는 좀 왕래하게 합시다.',
+  '공동 구매라더니 우리 병원 배송만 맨 마지막이면 곤란해요. 국제 우정도 좋지만 오늘 쓸 마스크 재고부터 확인하고 계약했으면 합니다.',
+  '나눌 기준과 긴급 배송 순서를 미리 정해 두면 되죠. 단체 주문은 했는데 누가 받을지 몰라 약 상자가 외교 회의에 참석하면 안 되니까요.'
+ ],
+ evacuate:[
+  '대피 버스는 비가 그친 뒤 오면 관광버스가 되는 거죠. 위험할 때 먼저 이동시키고, 거동이 불편한 이웃부터 함께 챙겼으면 합니다.',
+  '대피소 위치만 알려 주면 고양이와 휠체어는 어디로 가나요. 지도에 찍힌 점 하나가 모두에게 갈 수 있는 장소인 건 아니잖아요.',
+  '이동 지원과 반려동물 공간까지 준비해서 데리러 갑시다. 대피 안내가 길 찾기 시험이 되면 제일 도움이 필요한 사람이 남게 돼요.'
+ ],
+ rebuild:[
+  '끊어진 길이 열려야 구호품도 들어오겠죠. 복구 현수막은 벌써 도착했으니 이번에는 굴착기도 같은 배송 서비스를 이용해 주시면 좋겠습니다.',
+  '급하다고 공사 계약까지 눈 감고 하면 또 보수할 일이 생겨요. 이번 복구가 다음 복구 사업의 예고편이 되지는 않았으면 합니다.',
+  '먼저 고칠 곳과 공사 내역을 주민에게 공개합시다. 현장 사진만 올리지 말고 오늘 어느 길까지 통하는지 알려 주면 훨씬 쓸모 있겠네요.'
+ ],
+ ration:[
+  '생수가 빨리 달린 사람의 전리품이 되는 건 곤란하죠. 필수 물자를 나눠 받게 하면 지갑 두께로 생존 순서를 정하는 일은 줄겠네요.',
+  '배급 줄에 하루 종일 서면 일당은 누가 벌어 주나요. 물 한 통 받으러 갔다가 오늘 저녁 반찬값을 놓고 올까 걱정입니다.',
+  '시간대 예약과 거동 불편 가구 배송도 같이 합시다. 공평하게 나눈다면서 모든 시민에게 똑같이 긴 줄을 선물할 필요는 없잖아요.'
+ ],
+ relief:[
+  '냉장고는 경기 회복 전망을 넣어도 채워지지 않더라고요. 당장 식비가 모자란 집에 생활비가 닿으면 오늘 저녁부터 달라질 수 있습니다.',
+  '지원 기준 바로 위라는 이유로 못 받는 집도 빠듯해요. 형편은 계단이 아닌데 서류에서는 한 칸 차이로 갑자기 부자가 되더군요.',
+  '문턱 근처 가구는 지원을 천천히 줄이는 방식도 있죠. 도움이 필요한지 확인하되 가난을 증명하는 오디션까지 열지는 맙시다.'
+ ],
+ credit:[
+  '이자가 낮아지면 밀린 재료비부터 낼 수 있겠네요. 가게 셔터가 영구 휴가를 떠나기 전에 잠깐 버틸 자금을 빌릴 길은 필요합니다.',
+  '손님은 안 늘었는데 갚을 날짜만 늘어나면 어떡하죠. 대출을 매출로 착각하면 장부는 잠깐 웃어도 다음 달 사장 얼굴은 울상일 텐데요.',
+  '대출과 함께 상환 유예나 판로 지원도 살펴봅시다. 숨통을 틔워 준다면서 은행 알림 문자만 더 자주 숨 쉬게 만들면 곤란하죠.'
+ ],
+ work:[
+  '이력서 파일 이름에 최종이 세 번 붙었습니다. 동네에 필요한 공공 일부터 하며 경력을 쌓고 다음 직장으로 갈 발판이 생기면 좋겠네요.',
+  '사업 끝나는 날 다시 실업자면 명찰만 기념품으로 남겠죠. 채용 인원 발표만큼 계약 종료 뒤에 어디로 갈지도 궁금합니다.',
+  '실무 교육과 민간 채용 연결을 함께 붙이면 어떨까요. 일자리 사업이 회전문이 되지 않게, 들어가는 문 다음에 나갈 길도 만듭시다.'
+ ],
+ housing:[
+  '비 피할 방이 있어야 다음 날 면접 준비도 하죠. 긴급 주거가 생기면 집 주소 대신 사정을 길게 설명하는 일부터 줄어들겠습니다.',
+  '집은 싸도 출근길이 대장정이면 교통비가 월세를 대신하겠네요. 빈 땅에 건물만 올리지 말고 병원과 버스도 같이 봐 주세요.',
+  '기존 빈집을 활용하고 생활 시설 가까운 곳부터 찾읍시다. 입주 열쇠 하나 받았다고 하루가 갑자기 두 시간 길어지는 건 아니니까요.'
+ ],
+ repair:[
+  '다리 점검을 사고 속보 보고 시작하지는 맙시다. 매일 건너는 길에 먼저 돈을 쓰면 출근할 때마다 운을 시험할 필요는 없겠죠.',
+  '멀쩡한 구간까지 한꺼번에 막으면 동네가 거대한 우회전 코스가 돼요. 안전 공사라 해도 상점 출입구까지 봉인하지는 말아 주세요.',
+  '위험한 곳부터 나눠 공사하고 우회로를 먼저 알립시다. 공사 안내판보다 내비게이션의 한숨이 먼저 나오는 일은 줄일 수 있겠네요.'
+ ],
+ grid:[
+  '정전 때마다 냉장고 음식으로 급히 잔치를 열고 있어요. 전력망을 보강하고 공급원을 나누면 병원과 가게도 덜 불안하겠죠.',
+  '새 설비는 환영하지만 전기요금이 먼저 미래로 뛰어갈까 걱정입니다. 투자비를 누가 얼마나 부담하는지 설명부터 듣고 싶어요.',
+  '취약 가구 부담을 살피고 고장이 잦은 곳부터 연결합시다. 전력 전환의 첫 성과가 멋진 조감도보다 덜 꺼지는 전등이면 좋겠네요.'
+ ],
+ defend:[
+  '병사 장비가 박물관 전시품과 동창이면 교체할 때죠. 방어 장비를 손봐서 현장에서는 용기만으로 고장을 해결하지 않아도 됐으면 해요.',
+  '비싼 장비를 샀는데 정비할 예산이 없으면 거대한 장식품이잖아요. 구매 발표 옆에 부품 조달과 유지 계획도 같이 보여 주세요.',
+  '유지비까지 따져 필요한 장비부터 바꾸면 되죠. 이웃에게도 방어 목적을 설명해서 장비 박스와 함께 오해까지 수입하지는 맙시다.'
+ ],
+ patrol:[
+  '비상구 위치를 실제 상황에서 처음 찾고 싶지는 않아요. 경계와 대피 훈련을 미리 하면 당황할 때도 발이 갈 방향은 알겠죠.',
+  '예고 없이 사이렌이 울리면 훈련보다 심장 운동부터 합니다. 가게와 학교가 준비할 수 있게 일정과 범위를 먼저 알려 주세요.',
+  '대피 방법은 익히되 일상을 계속 멈추지는 맙시다. 훈련의 성적표는 사이렌 소리 크기보다 시민이 길을 제대로 아는지로 봐야죠.'
+ ],
+ mediation:[
+  '말로 풀 수 있는 갈등이면 회의실 의자를 더 놓읍시다. 국경에서 맞서는 것보다 식탁에서 표정 관리하는 편이 시민에게는 낫겠죠.',
+  '정상들이 웃으며 악수한 사진은 이미 앨범 한 권이에요. 이번에는 어떤 약속을 언제 지킬지 사진 설명에도 좀 적어 주셨으면 합니다.',
+  '작은 합의라도 이행 날짜와 확인 절차를 붙입시다. 회담이 끝났다는 소식보다 위험이 줄었다는 소식을 다음 기사에서 보고 싶네요.'
+ ],
+ openTrade:[
+  '항구에 묶인 수출 상자가 직원보다 출근을 오래 하네요. 교역 장벽을 낮추면 물건이 움직이고 주문도 다시 이어질 수 있겠죠.',
+  '문을 활짝 열면 준비가 덜 된 작은 업체는 바람부터 맞아요. 값싼 수입품과 경쟁할 시간을 주지 않으면 개방 축하에 참석하기 어렵겠네요.',
+  '장벽은 단계적으로 낮추고 작은 업체의 판로도 챙깁시다. 무역의 문이 회전문처럼 큰 회사만 편하게 드나드는 구조는 피해야죠.'
+ ],
+ reserve:[
+  '품절 안내문은 끓여 먹을 수가 없더군요. 식량과 필수 자원을 미리 확보하면 공급이 끊겨도 당장 장바구니부터 비지는 않겠죠.',
+  '창고에 쌓아 두기만 하면 유통기한이 정책보다 먼저 끝나요. 비축량 자랑도 좋지만 어떤 물건부터 꺼내 쓸지 관리가 필요합니다.',
+  '오래된 물자는 먼저 순환하고 창고 상태도 점검합시다. 비상식량이 비상하게 오래된 식량이라는 뜻은 아니어야 하잖아요.'
+ ],
+ farm:[
+  '농작물은 비 예보만 보고 갈증을 참아 주지 않죠. 관개 시설과 농업 지원이 들어오면 갈라진 밭에도 다음 수확을 기대할 여지가 생깁니다.',
+  '물길이 큰 농장 앞에서만 친절하게 멈추지는 않겠죠. 작은 농가는 지원 신청서 작성하는 동안 밭이 더 마를까 걱정입니다.',
+  '농가 규모와 물 부족 정도를 함께 보고 순서를 정합시다. 현장 접수도 열어서 물보다 먼저 필요한 것이 프린터가 되는 일은 막아요.'
+ ],
+ automation:[
+  '공장의 반복 작업을 기계가 맡으면 생산이 빨라지겠네요. 사람이 하루 종일 같은 나사와 눈싸움하기보다 다른 기술을 익힐 여유도 생기면 좋죠.',
+  '자동화 설비 개통식이 직원 송별회를 겸할까 걱정입니다. 생산성이 좋아진다는 말에 우리 출입증까지 자동으로 꺼지면 곤란하잖아요.',
+  '장비 지원에 직무 전환과 고용 대책을 같이 묶읍시다. 기계 사용 설명서는 두꺼운데 사람의 다음 업무는 빈칸으로 남겨 두지 말고요.'
+ ],
+ retrain:[
+  '새 기술을 배우려 해도 퇴근하면 체력이 먼저 로그아웃해요. 교육 시간과 비용을 지원하면 직장을 바꿀 준비가 훨씬 현실적이겠죠.',
+  '수료증은 늘었는데 채용 공고는 여전히 경력자만 찾더군요. 강의 출석 도장이 취업 도장으로 자동 변환되는 건 아니잖아요.',
+  '기업이 필요한 업무를 교육에 넣고 실습도 연결합시다. 강좌 이름에 미래를 붙이는 것보다 수료 후 일할 곳 하나가 더 든든하겠네요.'
+ ],
+ cyber:[
+  '공공 사이트가 멈추니 민원도 같이 강제 휴가더군요. 보안과 백업에 투자해서 파일 하나가 나라 전체 업무와 동반 실종되지는 않게 합시다.',
+  '보안을 강화한다면서 비밀번호만 자주 바꾸라고 하겠죠. 시민 정보는 더 모으고 관리 책임은 더 흐려지는 방향은 걱정스럽습니다.',
+  '접근 권한을 줄이고 복구 훈련까지 해야 효과가 있겠네요. 백업 파일 이름이 진짜최종이라고 해서 진짜 복구가 되는 건 아니니까요.'
+ ],
+ pension:[
+  '가족 돌봄 일정표가 야간 근무표보다 빽빽합니다. 돌봄 인력과 노후 안전망이 늘면 가족끼리 교대 근무하듯 버티는 일도 줄겠죠.',
+  '돌봄 담당자에게 좋은 마음만 무한 충전하라고 하면 오래 못 가요. 이용자 지원뿐 아니라 일하는 사람의 임금과 휴식도 살펴야 합니다.',
+  '지속할 재원과 인력 대우를 함께 정합시다. 모두가 나이 드는데 노후 계획을 미래의 가족 단체 채팅방에만 맡길 수는 없잖아요.'
+ ],
+ migration:[
+  '동네 공장 구인 안내가 계절 장식처럼 붙어 있더군요. 새로 오는 사람들이 정착할 수 있으면 일터와 지역에도 활기가 돌겠죠.',
+  '사람만 초대하고 집과 학교가 그대로면 다 같이 불편해져요. 환영 현수막은 넓은데 정작 버스 자리는 늘지 않을까 걱정입니다.',
+  '기존 주민과 새 이웃이 함께 쓸 시설을 늘려야죠. 정착 지원이 주소 등록으로 끝나지 않게 언어와 노동 상담도 곁들입시다.'
+ ],
+ bonds:[
+  '급한 공공 사업을 멈추느니 국채로 재원을 마련할 수는 있죠. 다만 국가 통장에 들어온 돈이 공짜 용돈은 아니라는 표시도 붙여 둡시다.',
+  '오늘 예산 발표에는 박수 소리, 나중 상환일에는 알림 소리가 나겠네요. 정부가 빌린 돈인데 청구서 수신자는 다음 세대일까 걱정이에요.',
+  '차입 목적과 갚을 계획을 국채 발행 때 함께 공개합시다. 빚으로 시간을 샀으면 그동안 문제를 풀어야지 달력만 넘기면 안 되잖아요.'
+ ],
+ tax:[
+  '위기에도 큰 이익을 낸 곳이 조금 더 부담하면 좋겠어요. 재원 찾을 때마다 월급 명세서가 자동 검색 첫 줄에 뜨는 상황도 바꿔 보고요.',
+  '초과 이익의 기준이 매번 움직이면 사업 계획은 눈치 시험이 되죠. 한시 부담금이 이름만 한시이고 계속 연장될까 걱정됩니다.',
+  '걷는 기준과 종료 조건부터 분명히 써 놓읍시다. 세금 안내문의 작은 글씨를 다 읽어야만 투자 계획을 세울 수 있는 나라는 피해야죠.'
+ ],
+ rescue:[
+  '이웃 재난에 구조대와 물자를 보내는 건 필요한 일이라고 봐요. 도움의 손길은 다음 위기에 우리에게 돌아올 가장 따뜻한 답장이 될 수 있죠.',
+  '파견 소식은 반갑지만 우리 지역 구조 인력까지 비면 곤란하죠. 해외 활동 사진 뒤에 국내 당직표가 구멍 나 있지는 않은지 확인해 주세요.',
+  '국내 대응 여력을 남기고 현지에서 필요한 물자부터 보내면 되죠. 보내는 쪽의 기념품 목록보다 받는 쪽의 요청 목록을 먼저 펼칩시다.'
+ ],
+ climateReady:[
+  '옆 지역 재난을 남의 동네 날씨 이야기로 넘기면 안 되죠. 대피로와 제방을 미리 살피면 위험이 찾아와도 처음 뵙겠습니다 하지는 않겠네요.',
+  '점검표에 도장만 늘면 제방은 서류상으로만 튼튼해지죠. 위험하다고 적힌 곳을 언제 고칠지까지 정하지 않으면 종이 운동일 뿐이에요.',
+  '점검 결과와 보수 일정을 주민에게 함께 공개합시다. 비 오기 전에는 담당 부서를 찾고 비 온 뒤에는 책임자를 찾는 순환부터 끊어야죠.'
+ ]
+};
+
 export type Stat = 'economy' | 'support' | 'military' | 'infrastructure' | 'relations';
 export type Stats = Record<Stat, number>;
 export const STAT_NAMES: Record<Stat,string> = {economy:'경제',support:'국민 지지율',military:'군사력',infrastructure:'인프라',relations:'국제 관계'};
@@ -267,7 +407,7 @@ export const POLICY_OPINIONS:[string,string,string][][]=[
  ]
 ];
 function voice(r:Room,nation:number,text:string,urgent=false,privateTo?:number[],speaker?:string,batch?:string){r.reactions??=[];r.reactions.push({id:crypto.randomUUID(),nation,text,at:r.clock,urgent,speaker:speaker||citizenFor(nation,r.round,r.voiceCounter=(r.voiceCounter||0)+1),batch,...(privateTo?{privateTo}:{})});r.reactions=r.reactions.slice(-100);}
-function policyReaction(r:Room,nation:number,choice:number){const batch=crypto.randomUUID();policyOpinions(policyChoices(byNation(r,nation))[choice],nation,choice).slice(0,2).forEach((text,i)=>voice(r,nation,text,false,undefined,citizenFor(nation,r.round,i),batch));}
+function policyReaction(r:Room,nation:number,choice:number){const batch=crypto.randomUUID(),c=policyChoices(byNation(r,nation))[choice];policyOpinions(c,nation,choice).slice(0,2).forEach((text,i)=>voice(r,nation,text,false,undefined,policySpeaker(c,nation,r.round,i),batch));}
 function actionReaction(action:string,topic?:string){const theme=['war','mobilize','ultimatum'].includes(action)?'military':['economy','sanction'].includes(action)?'finance':action==='infrastructure'?'energy':action==='support'?'welfare':'diplomacy';return `${topic?COOPERATION.find(x=>x.id===topic)?.name+' 소식이네요. ':''}${WITTY_DEBATES[theme][action==='war'?2:1]}`;}
 function addLosses(p:Player,title:string,deaths:number,unemployed:number){deaths=Math.max(0,Math.min(deaths,NATIONAL_POPULATIONS[p.nation]-(p.deaths||0)));const workforce=Math.max(0,Math.floor((NATIONAL_POPULATIONS[p.nation]-(p.deaths||0)-deaths)*.5));unemployed=Math.max(0,Math.min(unemployed,workforce-(p.unemployed||0)));p.deaths=(p.deaths||0)+deaths;p.unemployed=Math.min(workforce,(p.unemployed||0)+unemployed);p.eventLosses??={};const prev=p.eventLosses[title]||{deaths:0,unemployed:0};p.eventLosses[title]={deaths:prev.deaths+deaths,unemployed:prev.unemployed+unemployed};}
 function applyDisaster(r:Room,e:WorldEvent,affected=r.players){
@@ -371,36 +511,37 @@ export function crisisMarkers(r:EventState&Pick<Room,'status'|'deadline'|'durati
 // policy keeps its own snapshot so a new turn cannot change a paid-for effect.
 export function policyChoices(p:{nation:number;policies?:Choice[]}){return p.policies?.length===3?p.policies:CHOICES[p.nation];}
 export function policyImage(c:Choice,nation:number,index:number){return c.image||`/policy-${nation*3+index}.webp`;}
-export function policyOpinions(c:Choice,_nation:number,_index:number):[string,string,string]{return wittyPolicy(c);}
-function policy(id:string,label:string,effect:Effect,tension:number,art:number,pro:string,con:string):Choice{return {id,label,detail:'',effect,tension,image:`/policy-${art}.webp`,opinions:[pro,con,'싸우는 동안 현장은 더 무너집니다! 좋은 구호만 내걸지 말고, 피해를 누가 떠안는지 따져서 끝까지 책임지세요.']};}
+export function policyOpinions(c:Choice,nation:number,index:number):[string,string,string]{const legacy=CHOICES[nation]?.findIndex(x=>x.label===c.label);return [...(POLICY_DIALOGUE[c.id||'']||((legacy??-1)>=0?POLICY_OPINIONS[nation][legacy!]:c.opinions)||POLICY_OPINIONS[nation][index])];}
+export function policySpeaker(c:Choice,nation:number,round:number,index:number){const slot=Object.keys(POLICY_DIALOGUE).indexOf(c.id||'');return citizenFor(nation,round,Math.max(0,slot)*3+index);}
+function policy(id:string,label:string,effect:Effect,tension:number,art:number):Choice{return {id,label,detail:'',effect,tension,image:`/policy-${art}.webp`,opinions:[...POLICY_DIALOGUE[id]]};}
 export const POLICY_BANK:Record<string,Choice>={
- hospitals:policy('hospitals','긴급 병상·의료 인력 확충',{infrastructure:13,support:8,money:-30},-1,5,'복도에서 환자가 기다리는데 아직도 예산 타령입니까! 지금 병상부터 열어야 내 가족도 살 수 있어요.','의료진은 이미 쓰러질 지경인데 건물만 늘리면 끝인가요? 사람도 없이 간판만 세우는 대책은 지겹습니다.'),
- quarantine:policy('quarantine','집중 방역·모임 제한',{support:9,infrastructure:6,economy:-7,money:-12},1,9,'감염이 도는데 평소처럼 살자는 건 무책임하죠! 지금 불편을 견뎌야 병원이 무너지는 걸 막습니다.','문 닫으라는 말은 한마디지만 우리 가게 빚은 누가 갚습니까! 생계 대책 없는 제한은 버티라는 협박입니다.'),
- healthAid:policy('healthAid','방역 물자 공동 조달',{relations:12,infrastructure:7,money:-22},-4,10,'국경 세운다고 바이러스가 여권 검사 받습니까! 서로 약을 나눠야 결국 우리 가족도 안전해져요.','옆나라 물자부터 챙기다 우리 병원 재고가 바닥나면요? 연대라는 말 뒤에 국내 환자를 숨기지 마세요.'),
- evacuate:policy('evacuate','위험 지역 강제 대피',{support:12,economy:-5,infrastructure:5,money:-15},0,5,'집은 다시 지어도 사람은 돌아오지 못합니다! 머뭇거릴 시간에 대피 버스부터 보내야죠.','평생 모은 집을 두고 나오라니 가슴이 찢어집니다! 대피소 문만 열고 보상은 모른 척할까 두려워요.'),
- rebuild:policy('rebuild','긴급 복구·구호 거점 설치',{infrastructure:18,support:7,money:-35},-1,7,'끊긴 길부터 뚫어야 물 한 병이라도 들어옵니다! 카메라 앞 약속 말고 장비와 인력을 보내세요.','공사 업체만 잔치하는 건 아닌지 지켜보겠습니다! 복구 예산이 새면 피해 주민은 두 번 무너져요.'),
- ration:policy('ration','필수 물자 배급·사용 제한',{support:9,economy:-6,infrastructure:4,money:-8},2,6,'돈 많은 집만 쓸어가면 나머지는 굶으라는 겁니까! 지금은 남은 물자를 나누는 질서부터 필요해요.','줄 서는 사람은 시민인데 특권층은 새치기하겠죠! 제한을 강요할 거면 권력자부터 똑같이 지키세요.'),
- relief:policy('relief','취약 가구 긴급 생활 지원',{support:16,economy:3,money:-28},-1,5,'냉장고가 비어 가는데 장기 계획만 읊지 마세요! 오늘 버틸 돈이 있어야 내일 일하러 나갑니다.','지원금 받으려고 줄 선 사람을 탓할 생각은 없어요. 다만 꼭 필요한 집보다 목소리 큰 집이 먼저 챙길까 화가 납니다.'),
- credit:policy('credit','소상공인 저리 긴급 대출',{economy:14,support:4,money:-26},0,3,'가게 셔터 내리면 다시 열기는 하늘의 별 따기예요! 숨통이 트일 자금부터 넣어 줘야 동네가 삽니다.','장사도 안 되는데 빚을 더 내라니요! 대출 숫자만 성과라고 자랑하지 말고 손님이 돌아올 길을 만드세요.'),
- work:policy('work','공공 일자리·재취업 사업',{economy:10,support:10,infrastructure:3,money:-30},-1,8,'이력서만 돌리다 지쳤습니다! 단기 일이라도 시작해서 월세를 내고 다시 설 기회가 필요해요.','사진용 단기 일자리로 취업 대책 끝냈다고 할 건가요? 몇 달 뒤 또 거리로 내몰리면 누가 책임집니까!'),
- housing:policy('housing','공공 임대·긴급 주거 공급',{support:13,infrastructure:8,money:-32},0,5,'잘 곳도 없는 사람에게 노력하라는 말부터 합니까! 안전하게 잠들 집이 있어야 삶을 다시 세웁니다.','집이 급한 건 맞지만 교통도 병원도 없는 곳에 몰아넣지 마세요! 숫자만 채운 주거 정책은 또 다른 고립입니다.'),
- repair:policy('repair','노후 교량·도로 안전 보강',{infrastructure:17,economy:3,money:-29},0,7,'다리가 무너진 뒤에야 점검표를 꺼낼 겁니까! 매일 건너는 길부터 안전하게 만들어요.','공사한다고 길을 다 막아 놓으면 가게는 망합니다! 안전을 핑계로 주민 불편을 무시하지 마세요.'),
- grid:policy('grid','전력망·분산 에너지 투자',{infrastructure:15,economy:6,money:-32},-1,7,'전기 끊기면 병원도 공장도 끝입니다! 임시 발전기로 버티는 나라를 정상이라고 할 수 있나요?','또 요금만 올리고 큰 회사만 혜택 보는 건 아닌가요? 새 전력망의 청구서부터 시민에게 넘기지 마세요.'),
- defend:policy('defend','방어 장비 현대화',{military:16,support:4,relations:-5,money:-28},4,0,'국경이 흔들리는데 안심하라는 방송만 나옵니다! 병사에게 제대로 된 장비부터 줘야 지킬 수 있죠.','장비 계약은 거액인데 생활 지원은 늘 돈이 없대요! 안보를 말할수록 예산 사용부터 투명하게 밝히세요.'),
- patrol:policy('patrol','국경 경계·민방위 훈련',{military:10,support:3,economy:-3,money:-14},3,0,'훈련 한 번 안 하고 위기 때 침착하라는 건 농담이죠! 대비가 있어야 불안도 줄어드는 겁니다.','매일 사이렌 울리면 장사도 일상도 얼어붙어요! 시민을 겁주는 게 훈련의 목적은 아니잖습니까.'),
- mediation:policy('mediation','국제 중재·긴급 정상 회담',{relations:17,support:4,money:-22},-7,9,'말 한마디로 싸움을 멈출 수 있다면 백 번이라도 해야죠! 자존심 지키겠다고 시민을 위험에 밀어 넣지 마세요.','악수 사진만 남기고 약속은 휴지 조각이 될까 걱정입니다! 웃는 얼굴 뒤에 무엇을 양보했는지 공개하세요.'),
- openTrade:policy('openTrade','교역 장벽 완화·항로 개방',{economy:11,relations:10,support:-4,money:-20},-3,3,'막힌 항구에서 물건만 썩고 있습니다! 거래의 문을 열어야 월급도 가게 매출도 돌아오죠.','대기업 수출만 늘면 동네 가게는 사라져도 됩니까! 문을 열수록 밀려나는 사람을 함께 챙겨야죠.'),
- reserve:policy('reserve','식량·필수 자원 비축',{infrastructure:9,support:7,economy:-3,money:-18},0,6,'텅 빈 진열대 보고 나서야 놀랄 겁니까! 평소에 쌓아 둔 물자가 위기 때 시민을 지킵니다.','창고에 썩히다 버리고 담당자는 승진하겠죠! 얼마나 필요한지 근거도 없이 사들이면 예산 낭비입니다.'),
- farm:policy('farm','가뭄 대응 관개·농업 지원',{infrastructure:12,economy:8,money:-27},-1,7,'논밭이 갈라지는데 농민에게 인내만 요구합니까! 물길을 살려야 다음 계절 식탁도 지킬 수 있어요.','대형 농장만 지원받고 작은 농가는 서류에 막힐까 봐요! 현장을 모르는 기준부터 뜯어고쳐야 합니다.'),
- automation:policy('automation','중소기업 자동화 전환',{economy:16,infrastructure:8,support:-8,money:-30},0,7,'기술 변화 놓치면 공장 전체가 사라집니다! 버티는 척하다 일자리 전부 잃기 전에 바꿔야죠.','기계 들여오는 날 우리가 해고되는 건가요? 효율이라는 말로 사람을 부품처럼 버리지 마세요!'),
- retrain:policy('retrain','디지털 직무 전환 교육',{support:10,economy:8,infrastructure:6,money:-25},-1,8,'새 기술을 배우고 싶어도 학원비부터 벽입니다! 회사가 바뀌라고만 할 게 아니라 배울 시간을 보장해야죠.','자격증만 쌓이고 취업은 안 되면 누가 책임집니까! 강의 업체만 배 불리는 교육은 이제 질렸어요.'),
- cyber:policy('cyber','공공망 보안·백업 복구',{infrastructure:15,relations:5,money:-25},-2,7,'통장도 병원 기록도 멈췄는데 복구 중이라는 말뿐입니다! 기본적인 백업조차 없었다면 책임부터 물어야죠.','보안을 핑계로 시민 정보까지 다 들여다볼까 걱정돼요! 안전과 감시는 같은 말이 아닙니다.'),
- pension:policy('pension','돌봄 인력·노후 안전망',{support:15,infrastructure:6,money:-30},-1,5,'돌봄은 가족이 알아서 하라더니 모두 지쳤어요! 늙고 아픈 게 죄가 아닌 사회부터 만들어야죠.','젊은 세대 지갑만 열라고 하면 갈등만 커집니다! 혜택과 부담을 어떻게 나눌지 정직하게 말하세요.'),
- migration:policy('migration','인력 유입·정착 지원',{economy:13,infrastructure:5,support:-6,money:-18},-2,10,'일할 사람은 없다면서 새 이웃을 받을 준비는 왜 안 합니까! 주거와 노동 환경을 같이 챙겨야 지역이 살아납니다.','지원 발표만 하고 학교와 병원은 그대로라면요? 기존 주민도 새 이웃도 함께 버틸 기반부터 마련하세요.'),
- bonds:policy('bonds','긴급 국채·공공 자금 조달',{money:24,support:-5,economy:-3},1,6,'곳간이 비었다고 손 놓을 순 없잖아요! 지금 꼭 필요한 일부터 살리고 빚 갚을 계획을 분명히 세우세요.','오늘의 박수는 정부가 받고 내일의 청구서는 우리가 받겠죠! 돈을 빌리기 전에 낭비한 예산부터 공개하세요.'),
- tax:policy('tax','초과 이익 한시 부담금',{money:20,support:5,economy:-8},1,6,'위기 속에서도 이익 본 곳이 부담을 더 져야죠! 월급쟁이 지갑만 뒤지는 방식은 이제 그만합시다.','기준이 오락가락하면 누가 투자하겠습니까! 정의로운 말로 포장해도 엉뚱한 곳에 걷으면 일자리가 줄어요.'),
- rescue:policy('rescue','국제 구조대·구호 물자 파견',{relations:15,support:-3,money:-20},-4,10,'이웃의 불길을 모른 척하면 다음엔 누가 우리를 돕겠어요! 지금 보낸 손길이 나라의 신뢰로 남습니다.','돕는 건 좋지만 우리 구조 장비도 부족하잖아요! 시민에게 설명도 없이 생색부터 내지는 마세요.'),
- climateReady:policy('climateReady','지역 기후 위험 사전 점검',{infrastructure:10,support:5,money:-16},-1,7,'옆나라 무너지는 걸 보고도 남의 일이라고요? 우리 대피로와 제방은 멀쩡한지 지금 확인합시다.','또 점검표에 도장만 찍고 끝내겠죠! 위험하다고 나온 곳에 실제 예산을 쓰지 않으면 종이 낭비입니다.')
+ hospitals:policy('hospitals','긴급 병상·의료 인력 확충',{infrastructure:13,support:8,money:-30},-1,5),
+ quarantine:policy('quarantine','집중 방역·모임 제한',{support:9,infrastructure:6,economy:-7,money:-12},1,9),
+ healthAid:policy('healthAid','방역 물자 공동 조달',{relations:12,infrastructure:7,money:-22},-4,10),
+ evacuate:policy('evacuate','위험 지역 강제 대피',{support:12,economy:-5,infrastructure:5,money:-15},0,5),
+ rebuild:policy('rebuild','긴급 복구·구호 거점 설치',{infrastructure:18,support:7,money:-35},-1,7),
+ ration:policy('ration','필수 물자 배급·사용 제한',{support:9,economy:-6,infrastructure:4,money:-8},2,6),
+ relief:policy('relief','취약 가구 긴급 생활 지원',{support:16,economy:3,money:-28},-1,5),
+ credit:policy('credit','소상공인 저리 긴급 대출',{economy:14,support:4,money:-26},0,3),
+ work:policy('work','공공 일자리·재취업 사업',{economy:10,support:10,infrastructure:3,money:-30},-1,8),
+ housing:policy('housing','공공 임대·긴급 주거 공급',{support:13,infrastructure:8,money:-32},0,5),
+ repair:policy('repair','노후 교량·도로 안전 보강',{infrastructure:17,economy:3,money:-29},0,7),
+ grid:policy('grid','전력망·분산 에너지 투자',{infrastructure:15,economy:6,money:-32},-1,7),
+ defend:policy('defend','방어 장비 현대화',{military:16,support:4,relations:-5,money:-28},4,0),
+ patrol:policy('patrol','국경 경계·민방위 훈련',{military:10,support:3,economy:-3,money:-14},3,0),
+ mediation:policy('mediation','국제 중재·긴급 정상 회담',{relations:17,support:4,money:-22},-7,9),
+ openTrade:policy('openTrade','교역 장벽 완화·항로 개방',{economy:11,relations:10,support:-4,money:-20},-3,3),
+ reserve:policy('reserve','식량·필수 자원 비축',{infrastructure:9,support:7,economy:-3,money:-18},0,6),
+ farm:policy('farm','가뭄 대응 관개·농업 지원',{infrastructure:12,economy:8,money:-27},-1,7),
+ automation:policy('automation','중소기업 자동화 전환',{economy:16,infrastructure:8,support:-8,money:-30},0,7),
+ retrain:policy('retrain','디지털 직무 전환 교육',{support:10,economy:8,infrastructure:6,money:-25},-1,8),
+ cyber:policy('cyber','공공망 보안·백업 복구',{infrastructure:15,relations:5,money:-25},-2,7),
+ pension:policy('pension','돌봄 인력·노후 안전망',{support:15,infrastructure:6,money:-30},-1,5),
+ migration:policy('migration','인력 유입·정착 지원',{economy:13,infrastructure:5,support:-6,money:-18},-2,10),
+ bonds:policy('bonds','긴급 국채·공공 자금 조달',{money:24,support:-5,economy:-3},1,6),
+ tax:policy('tax','초과 이익 한시 부담금',{money:20,support:5,economy:-8},1,6),
+ rescue:policy('rescue','국제 구조대·구호 물자 파견',{relations:15,support:-3,money:-20},-4,10),
+ climateReady:policy('climateReady','지역 기후 위험 사전 점검',{infrastructure:10,support:5,money:-16},-1,7)
 };
 const EVENT_POLICIES=[['defend','patrol','mediation'],['openTrade','credit','automation'],['hospitals','quarantine','healthAid'],['mediation','openTrade','rescue'],['rescue','climateReady','reserve'],['pension','migration','retrain'],['automation','retrain','cyber'],['credit','bonds','tax'],['reserve','farm','relief'],['grid','repair','reserve'],['cyber','retrain','mediation'],['evacuate','rebuild','housing'],['housing','migration','relief']];
 const NEED_POLICIES:Record<Stat,string[]>={economy:['credit','work'],support:['relief','housing'],military:['defend','patrol'],infrastructure:['repair','grid'],relations:['mediation','openTrade']};
@@ -414,7 +555,7 @@ export function generatePolicies(r:Room,p:Player):Choice[]{
  const candidates=p.money<25?['bonds','tax',...NEED_POLICIES[needs[0]]]:needs.flatMap(k=>NEED_POLICIES[k]);
  const available=candidates.filter(id=>!chosen.some(c=>c.id===id));const id=available[(r.round+p.nation)%Math.min(2,available.length)];
  chosen.push({...structuredClone(POLICY_BANK[id]),context:['bonds','tax'].includes(id)?'빠듯한 국고 · 재원 확보':`${STAT_NAMES[needs.find(stat=>NEED_POLICIES[stat].includes(id))!]} 보완 · 국내 현안`});
- return chosen.map(c=>({...c,opinions:wittyPolicy(c)}));
+ return chosen;
 }
 
 // Fictional population scales for gameplay, not real-world statistical rates.
@@ -444,4 +585,3 @@ const WITTY_DEBATES:Record<string,[string,string,string]>={
  energy:['전기와 도로는 미리 손봐야 합니다. 불이 꺼진 뒤 촛불 아래서 미래 비전을 발표하면 분위기만 좋아질 테니까요.','준공식 리본은 잘 잘라 놓고 유지비는 누가 내나요? 새 시설이 사진 촬영 끝나자마자 은퇴하지는 않았으면 합니다.','계획도에서는 모든 길이 뻥 뚫려 있더군요. 현실의 출근길에도 그 지도 제작자의 낙관을 조금 나눠 주세요.'],
  food:['물과 식량부터 챙깁시다. 밥상은 거창한 발표를 소화하지 못하니, 실제로 먹고 마실 것이 도착해야 하거든요.','비축 창고보다 서류 보관함이 먼저 가득 찰까 걱정입니다. 유통기한은 기다려 주지 않으니 현장 속도로 움직여 주세요.','나누자는 말은 좋은데 줄 서는 규칙도 공평해야죠. 특별 통로가 너무 많으면 결국 일반 통로만 길어집니다.']
 };
-function wittyPolicy(c:Choice):[string,string,string]{const id=c.id||'',theme=/hospital|quarantine|health/.test(id)?'health':/evacuate|rebuild|ration|climateReady/.test(id)?'disaster':/credit|bonds|tax/.test(id)?'finance':/defend|patrol/.test(id)?'military':/mediation|openTrade|rescue/.test(id)?'diplomacy':/automation|retrain|cyber/.test(id)?'technology':/repair|grid/.test(id)?'energy':/reserve|farm/.test(id)?'food':'welfare';return WITTY_DEBATES[theme].map((line,i)=>i===0?`${c.label}, 방향은 좋네요. ${line}`:line) as [string,string,string];}
