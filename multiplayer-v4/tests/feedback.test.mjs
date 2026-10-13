@@ -1,0 +1,22 @@
+import assert from 'node:assert/strict';
+import {createRoom,command,tick,view,income,NATIONAL_POPULATIONS,CITIZENS,citizenFor,prioritizeVoices} from '../lib/game.ts';
+const t=1000000;
+function game(event=1){const r=createRoom('FB2345','p0','host',t);r.nextEvent=event;r.seed=42;for(let i=0;i<4;i++){if(i)command(r,`p${i}`,{type:'join',name:'guest'},t);command(r,`p${i}`,{type:'select',nation:i},t);command(r,`p${i}`,{type:'ready'},t);}command(r,'p0',{type:'start'},t);for(const p of r.players){p.money=1000;command(r,p.id,{type:'choice',choice:-1},t);}return r;}
+const normal=game();for(const p of normal.players){const base=(.055+p.stats.economy/1200+p.stats.infrastructure/2400+(p.nation===2?.015:0))*1.15;assert.equal(income(p),base);normal.boycotts=[{from:(p.nation+1)%4,target:p.nation,until:t+10000}];assert.equal(income(p,normal),base/2);}
+const pandemic=game(2);for(const p of pandemic.players){assert(p.deaths>=1000&&p.deaths<100000);assert(p.unemployed>=10000&&p.unemployed<1000000);const impact=pandemic.incidents.at(-1).impacts.find(x=>x.nation===p.nation);assert.equal(impact.deaths,p.deaths);assert.equal(impact.unemployed,p.unemployed);}
+const capped=game();for(const p of capped.players){p.deaths=NATIONAL_POPULATIONS[p.nation]-1;p.unemployed=0;}capped.nextEvent=2;tick(capped,t+90000);for(const p of capped.players){assert.equal(p.deaths,NATIONAL_POPULATIONS[p.nation]);assert.equal(p.unemployed,0);}
+const climate=game(4);for(const p of climate.players)assert.equal(view(climate,p.id,t).incidents.length,p.nation===climate.climate.nation?1:0);
+for(const [attack,defend,winner] of [[90,30,0],[30,90,1],[60,60,1]]){
+ const r=game();r.players[0].stats.military=attack;r.players[1].stats.military=defend;for(const p of r.players)p.stats.infrastructure=0;
+ command(r,'p0',{type:'action',action:'war',target:1},t);assert.equal(r.incidents.at(-1).kind,'war-declared');assert(r.incidents.at(-1).impacts[0].money<0);assert.equal(view(r,'p1',t).dispatches[0].kind,'war');
+ tick(r,t+54999);assert(!r.incidents.some(x=>x.kind==='battle'));const before=structuredClone(r.players);tick(r,t+55000);const battle=r.incidents.at(-1);assert.equal(battle.kind,'battle');assert.equal(battle.winner,winner);assert.equal(battle.loser,1-winner);
+ for(const impact of battle.impacts){const p=r.players[impact.nation];assert.equal(impact.deaths,p.deaths);assert.equal(impact.unemployed,p.unemployed);assert(p.deaths>=1000&&p.unemployed>=10000);for(const c of impact.changes)assert.equal(c.delta,p.stats[c.stat]-before[p.nation].stats[c.stat]);}
+ assert(view(r,'p3',t+55000).incidents.some(x=>x.kind==='battle'));
+}
+const privateRoom=game();command(privateRoom,'p0',{type:'action',action:'message',target:1,text:'SECRET'},t);tick(privateRoom,t+4999);assert.equal(view(privateRoom,'p1',t+4999).dispatches.length,0);tick(privateRoom,t+5000);assert.equal(view(privateRoom,'p1',t+5000).dispatches[0].text,'SECRET');for(const id of ['p0','p2','p3'])assert.equal(view(privateRoom,id,t+5000).dispatches.length,0);
+command(privateRoom,'p0',{type:'action',action:'backchannel',target:1,topic:'education'},t+5000);tick(privateRoom,t+29000);command(privateRoom,'p1',{type:'respond',offerId:privateRoom.offers[0].id,accept:true},t+29000);assert(view(privateRoom,'p0',t+29000).dispatches.some(x=>x.kind==='response'));assert.equal(view(privateRoom,'p2',t+29000).dispatches.length,0);
+const recovery=game(2),person=recovery.players[0],old=person.unemployed;command(recovery,'p0',{type:'action',action:'economy'},t);tick(recovery,t+35000);assert.equal(person.unemployed,Math.max(0,old-24*NATIONAL_POPULATIONS[0]/10000));
+const own=[0,1,2,3,4,5].map(i=>({id:`own${i}`,nation:0,urgent:false})),foreign=[{id:'foreign',nation:1,urgent:true},{id:'private',nation:2,urgent:true,privateTo:[2,3]}];assert.equal(prioritizeVoices(foreign,0).length,0);assert.deepEqual(prioritizeVoices([...foreign,...own.slice(0,2)],0).map(x=>x.id),['own0','own1','foreign']);assert.equal(prioritizeVoices([...foreign,...own],0).length,5);assert(prioritizeVoices([...foreign,...own],0).every(x=>x.nation===0));
+assert.equal(new Set(CITIZENS).size,36);assert.equal(new Set(Array.from({length:36},(_,i)=>citizenFor(0,1,i))).size,36);
+const legacy=game();delete legacy.incidents;delete legacy.dispatches;assert.deepEqual(view(legacy,'p0',t).incidents,[]);assert.deepEqual(view(legacy,'p0',t).dispatches,[]);
+console.log('PASS: population-scaled harm and caps, 15% income, all war outcomes and actual damage, dispatch timing/privacy, recovery, 36 citizens, own-country priority and legacy rooms');

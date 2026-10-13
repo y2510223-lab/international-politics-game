@@ -20,6 +20,7 @@ const duplicate=await Promise.all([1,2,3,4].map(()=>api(0,{type:'action',code,ac
 await api(1,{type:'action',code,action:'message',target:2,text:'PRIVATE_TEST'});
 await new Promise(resolve=>setTimeout(resolve,5200));
 assert((await api(1)).room.logs.some(l=>l.text.includes('PRIVATE_TEST')));assert((await api(2)).room.logs.some(l=>l.text.includes('PRIVATE_TEST')));assert(!(await api(0)).room.logs.some(l=>l.text.includes('PRIVATE_TEST')));assert(!(await api(3)).room.logs.some(l=>l.text.includes('PRIVATE_TEST')));
+assert((await api(2)).room.dispatches.some(d=>d.text==='PRIVATE_TEST'));for(const n of [0,1,3])assert(!(await api(n)).room.dispatches.some(d=>d.text==='PRIVATE_TEST'));
 const unauth=await mf.dispatchFetch(`https://game.test/api/game?code=${code}`);assert.equal((await unauth.json()).room,null);
 const wrongOrigin=await mf.dispatchFetch('https://game.test/api/game',{method:'POST',headers:{'Content-Type':'application/json',origin:'https://other.test',cookie:sessions[0]},body:JSON.stringify({type:'action',code,action:'support'})});assert.equal(wrongOrigin.status,403);
 const row=await db.prepare('SELECT state FROM game_rooms WHERE code = ?').bind(code).first();const state=JSON.parse(row.state);state.clock-=901000;state.deadline-=901000;state.jobs=state.jobs.map(j=>({...j,start:j.start-901000,end:j.end-901000}));await db.prepare('UPDATE game_rooms SET state = ? WHERE code = ?').bind(JSON.stringify(state),code).run();out=await api(0);assert.equal(out.room.status,'finished');assert.equal(out.room.news.length,5);assert.equal(out.room.scores.length,4);
