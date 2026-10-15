@@ -64,6 +64,30 @@ aiStored.clock-=901000;aiStored.deadline-=901000;aiStored.nextAI-=901000;aiStore
 await db.prepare('UPDATE game_rooms SET state = ? WHERE code = ?').bind(JSON.stringify(aiStored),aiCode).run();
 aiRoom=await api(0);assert.equal(aiRoom.room.status,'finished');assert.equal(aiRoom.room.scores.length,4);assert.equal(aiRoom.room.news.length,5);
 console.log('PASS: Worker/D1 host AI controls, solo + 3 AI, join capacity, persisted decisions, reconnect and final results');
+// New negotiations use the same session, compare-and-swap and privacy boundary.
+sessions.fill('');
+let strategic=await api(0,{type:'create',name:'strategy-host'});const strategyCode=strategic.room.code;
+for(let n=0;n<3;n++){if(n)await api(n,{type:'join',name:`strategy-${n}`,code:strategyCode});await api(n,{type:'select',nation:n,code:strategyCode});await api(n,{type:'ready',code:strategyCode});}
+let strategicState=JSON.parse((await db.prepare('SELECT state FROM game_rooms WHERE code = ?').bind(strategyCode).first()).state);strategicState.nextEvent=2;
+await db.prepare('UPDATE game_rooms SET state = ? WHERE code = ?').bind(JSON.stringify(strategicState),strategyCode).run();
+strategic=await api(0,{type:'start',code:strategyCode});assert.equal(strategic.room.arc.status,'active');
+for(let n=0;n<3;n++){await api(n,{type:'choice',choice:-1,code:strategyCode});const data=(await api(n)).room;assert.equal(data.intel.length,1);assert.equal(data.intel[0].nation,n);}
+const privateText=(await api(0)).room.intel[0].text;
+await api(0,{type:'share_intel',target:1,code:strategyCode});assert((await api(1)).room.dispatches.some(d=>d.text===privateText));assert(!JSON.stringify((await api(2)).room).includes(privateText));
+const attempts=await Promise.all([0,1,2].map(()=>api(0,{type:'deal_propose',target:1,give:'medical',ask:'funding',requestId:'one-contract',code:strategyCode})));assert(attempts.every(r=>r.status===200));
+strategic=(await api(0));assert.equal(strategic.room.deals.length,1);const contractId=strategic.room.deals[0].id;assert.equal((await api(2)).room.deals.length,0);
+assert.equal((await api(2,{type:'deal_respond',dealId:contractId,accept:true,code:strategyCode})).status,400);
+assert.equal((await api(1,{type:'deal_respond',dealId:contractId,accept:true,code:strategyCode})).room.deals[0].status,'active');
+const settlement=await Promise.all([0,1,2].map(()=>api(1,{type:'deal_fulfill',dealId:contractId,requestId:'one-payment',code:strategyCode})));assert(settlement.every(r=>r.status===200));
+assert.equal((await api(0)).room.deals[0].status,'completed');
+strategicState=JSON.parse((await db.prepare('SELECT state FROM game_rooms WHERE code = ?').bind(strategyCode).first()).state);assert.equal(strategicState.players[1].history.dealsKept,1);
+assert.equal((await api(0,{type:'crisis_response',response:'care',code:strategyCode})).status,200);assert.equal((await api(1,{type:'crisis_response',response:'research',code:strategyCode})).status,200);
+assert.equal((await api(0,{type:'crisis_response',response:'care',code:strategyCode})).status,400);
+// Move only completed-response timestamps back to exercise the real API job path.
+strategicState=JSON.parse((await db.prepare('SELECT state FROM game_rooms WHERE code = ?').bind(strategyCode).first()).state);strategicState.jobs.forEach(j=>{j.start-=20000;j.end-=20000;});
+await db.prepare('UPDATE game_rooms SET state = ? WHERE code = ?').bind(JSON.stringify(strategicState),strategyCode).run();
+strategic=await api(0);assert.equal(strategic.room.arc.responses.length,2);
+console.log('PASS: Worker/D1 private intel, concurrent negotiation single charge, unauthorized response rejection, single settlement, persisted complementary crisis responses');
 const page=await mf.dispatchFetch('https://game.test/');assert.equal(page.status,200);assert((await page.text()).includes('긴장의 시대'));
 for(let i=0;i<12;i++){const image=await mf.dispatchFetch(`https://game.test/policy-${i}.webp`);assert.equal(image.status,200);}
 const art=await mf.dispatchFetch('https://game.test/nations.webp');assert.equal(art.status,200);assert(art.headers.get('content-type')?.includes('image/webp'));
