@@ -1,4 +1,6 @@
-# 긴장의 시대 — AI 포함 2~4개국 국제정치 멀티플레이
+# 국익의 이름으로 — AI 포함 2~4개국 국제정치 멀티플레이
+
+국가별 관점과 상호작용을 탐구하는 국제정치 시뮬레이션
 
 공개 게임: https://era-of-tension-four-nations.jagongo.chatgpt.site
 

@@ -194,3 +194,7 @@ button.floating-press{position:fixed;bottom:20px;right:20px;z-index:44;backgroun
 @keyframes outcome-arrive{0%{opacity:0;translate:0 12px}10%,85%{opacity:1;translate:0 0}100%{opacity:0;translate:0 -8px}}
 @media(max-width:600px){.outcome-toast{bottom:100px;padding:10px 14px}.outcome-toast strong{font-size:15px}.outcome-toast span{font-size:11px}}
 @media(prefers-reduced-motion:reduce){.outcome-wave,.outcome-lines{display:none}.outcome-toast{animation:none}}
+
+/* Korean title and subtitle retain legibility on smaller school notebooks. */
+.brand{min-width:0}.brand>span{min-width:0}.brand small{font-size:11px;letter-spacing:0;line-height:1.45;max-width:360px;white-space:normal}.compact-game .brand small{font-size:9px}
+@media(max-width:640px){.brand small{font-size:9px;max-width:195px}.compact-game .brand small{display:none}}

@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "긴장의 시대 · 2~4인 국제정치",
-  description: "네 국가, 열 번의 선택. 2~4명이 동시에 만드는 국제정치 전략 게임.",
+  title: "국익의 이름으로",
+  description: "국가별 관점과 상호작용을 탐구하는 국제정치 시뮬레이션. 네 국가, 열 번의 선택.",
+  openGraph: {title: "국익의 이름으로", description: "국가별 관점과 상호작용을 탐구하는 국제정치 시뮬레이션", locale: "ko_KR", type: "website"},
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",
