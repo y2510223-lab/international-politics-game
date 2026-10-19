@@ -27,7 +27,7 @@ for(const [humans,bots] of [[1,1],[1,2],[1,3],[2,1],[2,2],[3,1],[4,0]]){
  assert(Math.abs(p.money-(old.money+income(old,before)-spent))<1e-8);
  assert(r.jobs.filter(j=>j.actor===p.nation).every(j=>j.end>r.clock));
  }
- tick(r,t+900000);assert.equal(r.status,'finished');assert.equal(r.news.length,5);assert.equal(view(r,'p0',r.clock).scores.length,humans+bots);
+ tick(r,t+900000);assert.equal(r.status,'finished');assert.equal(r.news.length,10);assert.equal(view(r,'p0',r.clock).scores.length,humans+bots);
  for(const p of r.players.filter(p=>p.isAI)){assert(p.history.statement||p.history.economy||p.history.infrastructure||p.history.support||p.history.mobilize||p.history.treaty);assert(p.money>=0);assert(score(p).total>=0);assert(Object.values(p.stats).every(x=>x>=0&&x<=100));}
  const frozen=JSON.stringify(r);tick(r,t+1000000);assert.equal(JSON.stringify(r),frozen);
 }

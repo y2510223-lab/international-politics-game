@@ -199,7 +199,7 @@ export type Edition = {nation:number;articles:Article[];figures?:{deaths:number;
 export type News = {id?:string;round:number;title:string;body:string;impacts:{nation:number;delta:number;reason:string}[];editions?:Edition[];breaking?:boolean;at?:number};
 export type PairRelation = {a:number;b:number;value:number;label:string;reason:string};
 export type Reaction = {id:string;nation:number;text:string;at:number;urgent:boolean;privateTo?:number[];speaker?:string;batch?:string};
-export type Room = {strategyVersion?:number;arc?:PandemicArc;intel?:PrivateIntel[];deals?:Deal[];voiceCounter?:number;incidents?:Incident[];dispatches?:Dispatch[];climate?:ClimateIncident;aiCount?:number;nextAI?:number;code:string;host:string;status:'lobby'|'playing'|'finished';players:Player[];round:number;duration:number;deadline:number;clock:number;event:number;tension:number;jobs:Job[];offers:Offer[];logs:Log[];news:News[];seed:number;processed:string[];created:number;relations?:PairRelation[];reactions?:Reaction[];bulletins?:News[];nextEvent?:number;pandemicAt?:number;pressCooldown?:Record<string,number>;boycotts?:{from:number;target:number;until:number}[]};
+export type Room = {pressQueue?:Article[];strategyVersion?:number;arc?:PandemicArc;intel?:PrivateIntel[];deals?:Deal[];voiceCounter?:number;incidents?:Incident[];dispatches?:Dispatch[];climate?:ClimateIncident;aiCount?:number;nextAI?:number;code:string;host:string;status:'lobby'|'playing'|'finished';players:Player[];round:number;duration:number;deadline:number;clock:number;event:number;tension:number;jobs:Job[];offers:Offer[];logs:Log[];news:News[];seed:number;processed:string[];created:number;relations?:PairRelation[];reactions?:Reaction[];bulletins?:News[];nextEvent?:number;pandemicAt?:number;pressCooldown?:Record<string,number>;boycotts?:{from:number;target:number;until:number}[]};
 export class GameError extends Error {}
 const clamp=(n:number,min=0,max=100)=>Math.max(min,Math.min(max,n));
 function assert(ok:unknown,text:string):asserts ok {if(!ok)throw new GameError(text);}
@@ -236,19 +236,44 @@ function beginRound(r:Room){
  publishExtra(r,currentEventTitle(r),[currentEventArticle(r),forecastArticle(r)]);
  if(e.crisis||e.deaths||e.tension>=8)recordIncident(r,'crisis',currentEventTitle(r),r.climate?[r.climate.nation]:r.players.map(p=>p.nation),impactBefore);
 }
-function makeNews(r:Room){const before=snapshot(r);const recent=r.logs.filter(l=>l.round>r.round-2&&!l.privateTo);const wars=recent.filter(l=>l.kind==='war').length;const sanctions=recent.filter(l=>l.kind==='sanction').length;const cooperation=recent.filter(l=>['aid','treaty','statement'].includes(l.kind)).length;const title=wars?'전쟁의 대가, 흔들리는 세계 질서':sanctions>cooperation?'제재의 연쇄, 좁아지는 협상의 문':cooperation?'협력이 만든 변화, 긴장 완화의 실마리':'각국의 내정 선택, 다음 균형을 결정하다';const impacts=r.players.map(p=>{const own=recent.filter(l=>l.actor===p.nation);const aggressive=own.filter(l=>['war','sanction','mobilize'].includes(l.kind)).length;const peaceful=own.filter(l=>['aid','statement','treaty','infrastructure','support','economy'].includes(l.kind)).length;const goal=p.stats[NATIONS[p.nation].goal]>=(p.nation===0?65:p.nation===2?60:70);const delta=clamp(peaceful*2-aggressive*3+(goal?4:-4),-14,12);effect(p,{support:delta});return {nation:p.nation,delta,reason:`협력·내정 ${peaceful}건, 강경 행동 ${aggressive}건 · 국민 요구 ${goal?'충족':'미충족'}`};});const stories:Article[]=[];
- const pairs=(r.relations||[]).filter(p=>p.value!==0).sort((a,b)=>Math.abs(b.value)-Math.abs(a.value));
- if(pairs[0])stories.push(relationArticle(pairs[0]));
- stories.push(currentEventArticle(r),forecastArticle(r));
- r.news.push({id:crypto.randomUUID(),round:r.round,title,body:'',impacts,editions:editions(r,stories.slice(0,3)),at:r.clock});
- log(r,`${r.round}턴 국제 뉴스가 발행되었습니다. 국민 지지율에 여론 평가가 반영됩니다.`);recordChanges(r,before,'국제 여론 평가');
+function makeNews(r:Room){
+ if(r.news.some(n=>n.round===r.round))return;
+ const before=snapshot(r),recent=r.logs.filter(l=>l.round===r.round&&!l.privateTo);
+ // Keep the original two-turn opinion assessment; issuing a paper does not
+ // create an extra support reward. Repeated statements count once per turn.
+ const assessed=r.logs.filter(l=>l.round>r.round-2&&!l.privateTo);
+ const impacts=r.players.map(p=>{
+  const own=assessed.filter(l=>l.actor===p.nation),aggressive=own.filter(l=>['war','sanction','mobilize'].includes(l.kind)).length;
+  const peaceful=own.filter(l=>['aid','treaty','infrastructure','support','economy'].includes(l.kind)).length+new Set(own.filter(l=>l.kind==='statement').map(l=>l.round)).size;
+  const goal=p.stats[NATIONS[p.nation].goal]>=(p.nation===0?65:p.nation===2?60:70);
+  const delta=r.round%2===0?clamp(peaceful*2-aggressive*3+(goal?4:-4),-14,12):0;
+  effect(p,{support:delta});return {nation:p.nation,delta,reason:r.round%2===0?`협력·내정과 국민 요구 ${goal?'충족':'미충족'}에 대한 여론 평가`:'이번 턴 기록 · 여론 평가는 다음 짝수 턴'};
+ });
+ if(r.round%2===0)recordChanges(r,before,'국제 여론 평가');
+ const priority=(a:Article)=>/현장 집계|외교 파문|시민 행동|위기 결산|위기의 전환/.test(a.tag)?3:/외교 합의|공동 대응|시민 연대|연쇄 위기/.test(a.tag)?2:1;
+ const event=currentEventArticle(r),pool=(r.pressQueue||[]).filter(a=>a.headline!==event.headline).sort((a,b)=>priority(b)-priority(a));
+ const stories=pool[0]&&priority(pool[0])>=2?[pool[0],event,...pool.slice(1,2)]:[event,...pool.slice(0,2)];
+ const papers=editions(r,stories);
+ for(const paper of papers){const p=byNation(r,paper.nation),own=recent.filter(l=>l.actor===p.nation),actions=[...new Set(own.map(l=>ACTIONS.find(a=>a.id===l.kind)?.name).filter(Boolean))].slice(0,2);
+  const policy=own.some(l=>l.kind==='choice'&&l.text.includes('정책 시행.'))?p.memory?.policy:undefined;
+  paper.articles.push({tag:'우리나라 결산',headline:policy?`「${policy}」, 발표 뒤의 시험대`:actions.length?`${short(p.nation)}, 말에서 행동으로`:'조용했던 정부, 기다리는 시민',body:policy?`이번 턴 「${policy}」가 시행됐다. ${actions.length?actions.join('·')+'까지 이어졌지만, ':''}시민들은 발표보다 생활의 변화를 기다린다.`:actions.length?`${actions.join('·')}이 이번 턴의 선택이었다. 다음 장면은 약속을 지킬 때 비로소 열린다.`:'눈에 띄는 공개 행동은 드물었다. 신중함인지 망설임인지, 다음 선택이 답할 차례다.',image:policy?2:4});
+  paper.articles.push(forecastArticle(r));
+ }
+ r.news.push({id:crypto.randomUUID(),round:r.round,title:`${r.round}턴 결산 · ${event.headline}`,body:'',impacts,editions:papers,at:r.clock});
+ r.pressQueue=[];r.bulletins=[];
+ log(r,`${r.round}턴 결산 신문이 발행되었습니다.`, -1,'newspaper');
 }
 
+export function statementReturns(p:Pick<Player,'history'>,round:number){
+ const count=p.history.statementRound===round?(p.history.statementCount||0):0;
+ const returns=[{relations:7,support:3,tension:3},{relations:3,support:1,tension:1},{relations:1,support:0,tension:0}];
+ return returns[Math.min(count,3)]||{relations:0,support:0,tension:0};
+}
 function resolveJob(r:Room,j:Job){const before=snapshot(r),impactBefore=incidentSnapshot(r);let battle:{winner:number;loser:number}|undefined;const p=byNation(r,j.actor),t=byNation(r,j.target),a=ACTIONS.find(a=>a.id===j.action)!;const n=short(p.nation),target=short(j.target);
  if(j.action==='crisis-response'){resolveCrisisResponse(r,j);return;}
  if(j.action==='policy'){const c=j.policy||CHOICES[p.nation][j.choice!];effect(p,{...c.effect,money:Math.max(0,c.effect.money||0)});r.tension=clamp(r.tension+c.tension);log(r,`${n}의 ${c.label} 정책 시행. ${describeEffect(c.effect)}`,p.nation,'choice');recordChanges(r,before,c.label);rememberPolicy(r,p,c);checkObjective(r,p);return;}
  p.history[j.action]=(p.history[j.action]||0)+1;switch(j.action){
- case 'statement':effect(p,{relations:7,support:3});r.tension-=3;log(r,`${n}이 평화 성명을 발표했습니다. 국제 관계 +7, 지지 +3.`,p.nation,j.action);break;
+ case 'statement':{const gains=statementReturns(p,r.round);effect(p,{relations:gains.relations,support:gains.support});r.tension-=gains.tension;p.history.statementCount=(p.history.statementRound===r.round?p.history.statementCount||0:0)+1;p.history.statementRound=r.round;log(r,`${n}이 평화 성명을 발표했습니다. ${p.history.statementCount===1?'국제 신뢰와 국민 지지가 개선됩니다.':p.history.statementCount<4?'반복된 성명으로 호응이 줄었습니다.':'반복된 말보다 행동이 필요합니다. 추가 호응이 없습니다.'}`,p.nation,j.action);break;}
  case 'aid':effect(t,{money:25,economy:7});effect(p,{relations:10,support:-3});r.tension-=3;log(r,`${n}이 ${target}에 원조했습니다. 수원국 국고 +25, 경제 +7.`,p.nation,j.action);break;
  case 'sanction':effect(t,{economy:-13,money:-15});effect(p,{economy:-4,relations:-5});r.tension+=8;log(r,`${n}의 ${target} 제재가 발효됐습니다. 상대 경제 −13, 국고 −15; 자국 경제 −4.`,p.nation,j.action);break;
  case 'mobilize':effect(p,{military:13,support:3,relations:-6});r.tension+=7;log(r,`${n}이 국경 병력을 증강했습니다. 군사 +13, 국제 관계 −6.`,p.nation,j.action);break;
@@ -282,7 +307,7 @@ function resolveOffer(r:Room,o:Offer,accept:boolean,expired=false){const before=
  dispatch(r,o.to,o.from,'response',`${ACTIONS.find(a=>a.id===o.kind)?.name} ${expired?'기한 만료':accept?'수락':'거절'}`,o.kind==='backchannel'?'비공개 협력에 대한 응답이 도착했습니다.':'외교 수신함과 기록에서 결과를 확인하세요.');
  recordChanges(r,before,accept?'외교 제안 수락':'외교 제안 거절',o.kind==='backchannel'?[o.from,o.to]:undefined);
 }
-export function tick(r:Room,now:number){ensureNarrative(r);if(r.status!=='playing')return;r.clock=Math.min(r.clock,now);let safety=0;while(r.clock<now&&r.status==='playing'&&safety++<2000){const due=r.jobs.length?Math.min(...r.jobs.map(j=>j.end)):Infinity;const boycottEnd=Math.min(Infinity,...(r.boycotts||[]).filter(b=>b.until>r.clock).map(b=>b.until));const next=Math.min(now,r.deadline,due,r.nextAI??Infinity,boycottEnd);const dt=Math.max(0,(next-r.clock)/1000);for(const p of r.players)p.money=clamp(p.money+income(p,r)*dt,0,9999);r.clock=next;const done=r.jobs.filter(j=>j.end<=next).sort((a,b)=>a.end-b.end||a.start-b.start||a.id.localeCompare(b.id));r.jobs=r.jobs.filter(j=>j.end>next);for(const j of done)resolveJob(r,j);settleDeals(r);if(next>=r.deadline){settlePledges(r);for(const p of r.players)if(p.choice===null){p.choice=-1;effect(p,{support:-3});log(r,`${short(p.nation)}이 정책을 자동 보류했습니다. 국민 지지가 소폭 하락합니다.`,p.nation,'choice');}for(const o of r.offers)if(o.status==='pending'&&o.expires<=next)resolveOffer(r,o,false,true);if(r.round%2===0)makeNews(r);if(r.round>=10){const remaining=[...r.jobs].sort((a,b)=>a.end-b.end);r.jobs=[];for(const j of remaining)resolveJob(r,j);for(const o of r.offers)if(o.status==='pending')resolveOffer(r,o,false,true);if(r.arc?.status==='active')advanceCrisis(r,true);r.status='finished';log(r,'10턴이 종료되었습니다. 국가별 종합 평가를 확인하세요.');}else {r.round++;r.deadline+=r.duration*1000;beginRound(r);}}if(r.status==='playing'&&r.nextAI!==undefined&&r.clock>=r.nextAI){r.nextAI=r.clock+5000;runAI(r);}}}
+export function tick(r:Room,now:number){ensureNarrative(r);if(r.status!=='playing')return;r.clock=Math.min(r.clock,now);let safety=0;while(r.clock<now&&r.status==='playing'&&safety++<2000){const due=r.jobs.length?Math.min(...r.jobs.map(j=>j.end)):Infinity;const boycottEnd=Math.min(Infinity,...(r.boycotts||[]).filter(b=>b.until>r.clock).map(b=>b.until));const next=Math.min(now,r.deadline,due,r.nextAI??Infinity,boycottEnd);const dt=Math.max(0,(next-r.clock)/1000);for(const p of r.players)p.money=clamp(p.money+income(p,r)*dt,0,9999);r.clock=next;const done=r.jobs.filter(j=>j.end<=next).sort((a,b)=>a.end-b.end||a.start-b.start||a.id.localeCompare(b.id));r.jobs=r.jobs.filter(j=>j.end>next);for(const j of done)resolveJob(r,j);settleDeals(r);if(next>=r.deadline){settlePledges(r);for(const p of r.players)if(p.choice===null){p.choice=-1;effect(p,{support:-3});log(r,`${short(p.nation)}이 정책을 자동 보류했습니다. 국민 지지가 소폭 하락합니다.`,p.nation,'choice');}for(const o of r.offers)if(o.status==='pending'&&o.expires<=next)resolveOffer(r,o,false,true);if(r.round>=10){const remaining=[...r.jobs].sort((a,b)=>a.end-b.end);r.jobs=[];for(const j of remaining)resolveJob(r,j);for(const o of r.offers)if(o.status==='pending')resolveOffer(r,o,false,true);if(r.arc?.status==='active')advanceCrisis(r,true);makeNews(r);r.status='finished';log(r,'10턴이 종료되었습니다. 국가별 종합 평가를 확인하세요.');}else {makeNews(r);r.round++;r.deadline+=r.duration*1000;beginRound(r);}}if(r.status==='playing'&&r.nextAI!==undefined&&r.clock>=r.nextAI){r.nextAI=r.clock+5000;runAI(r);}}}
 export type Command = {aiCount?:number;type:string;requestId?:string;name?:string;nation?:number;duration?:number;round?:number;choice?:number;action?:string;target?:number;text?:string;offerId?:string;accept?:boolean;topic?:string;dealId?:string;give?:string;ask?:string;response?:string;pledge?:string};
 export function command(r:Room,id:string,c:Command,now:number){tick(r,now);applyCommand(r,id,c,now);}
 function applyCommand(r:Room,id:string,c:Command,now:number){let p=r.players.find(p=>p.id===id);if(c.type==='join'){if(p){p.lastSeen=now;return;}assert(r.status==='lobby','게임이 이미 시작되었습니다.');assert(r.players.length<4,'이미 4명이 참가한 방입니다.');r.players.push(newPlayer(id,cleanName(c.name),now));r.aiCount=Math.min(r.aiCount||0,4-r.players.length);return;}assert(p,'방에 먼저 참가해 주세요.');p.lastSeen=now;if(c.requestId&&r.processed.includes(`${id}:${c.requestId}`))return;
@@ -345,15 +370,23 @@ function eventArticle(index:number):Article{return {...(EVENT_COPY[index]||{tag:
 function forecastArticle(r:Room):Article{
  if(r.round>=10)return {tag:'마지막 국면',headline:'마지막 선택, 기록으로 남는다',body:'지도자들의 선택이 거리의 기억으로 남는다. 번영과 평화, 무엇을 지켜냈는가?',image:4};
  const hints=['해협에 군함이 모인다. 평온한 바다를 믿어도 될까?','항구에 주문이 몰린다. 다시 교역의 바람이 불 조짐이다.','낯선 감염 소식이 국경을 넘는다. 보건 당국은 긴장을 늦추지 말라!','거리마다 대화의 깃발이 오른다. 평화를 향한 큰 물결이 다가온다.','기상 관측소의 경고가 심상치 않다. 도시를 지킬 준비는 됐는가?','구인 공고가 늘어도 지원자는 뜸하다. 돌봄과 일터가 함께 흔들릴 조짐이다.','연구소와 공장에 새 바람이 분다. 거대한 산업 변화가 문을 두드린다.'];
- const i=r.nextEvent??r.event;return {tag:'다음 국면 예고',headline:'심상치 않은 전조',body:hints[i]||`${EVENTS[i].title}의 조짐이 짙어진다. 시민의 일상이 무너지기 전에 대응해야 한다!`,image:eventArticle(i).image};
+ const headlines=['해협의 군함, 훈련인가 압박인가','밀려드는 주문서, 항구가 들썩인다','국경 너머 낯선 감염, 병원은 준비됐나','광장의 목소리, 회담장까지 닿을까','기상 관측소의 경고, 이번에는 들어야 한다','구인판은 빼곡한데 일할 손은 어디에','연구실의 새 기술, 일터의 질서를 흔든다','흔들리는 은행 창구, 돈줄이 마를 조짐','곡물 창고에 도는 소문, 밥상이 불안하다','불안한 전력망, 도시의 밤은 안전한가','수상한 접속 흔적, 보이지 않는 공격자','지진 관측망의 이상 신호, 대비를 묻다','국경으로 향하는 피란길, 머물 곳은 있나'];
+ const i=r.nextEvent??r.event;return {tag:'다음 국면 예고',headline:headlines[i],body:hints[i]||`${EVENTS[i].title}의 조짐이 짙어진다. 시민의 일상이 무너지기 전에 대응해야 한다!`,image:eventArticle(i).image};
 }
 function editions(r:Room,stories:Article[]):Edition[]{
  const frames=[['안보가 먼저다','경계 없는 낙관은 금물.'],['시장은 기다리지 않는다','새 판을 읽는 자가 기회를 잡는다.'],['우리 삶은 우리가 지킨다','바깥의 약속보다 우리 터전부터!'],['신뢰를 잃으면 모두가 진다','지금 필요한 건 서로의 목소리다.']];
  return r.players.map(p=>({nation:p.nation,figures:damageFigures(r,p),articles:stories.map((s,i)=>({...s,headline:i===0?`${frames[p.nation][0]} — ${s.headline}`:s.headline,body:s.body}))}));
 }
-function publishExtra(r:Room,title:string,stories:Article[]){
- r.bulletins??=[];r.bulletins.push({id:crypto.randomUUID(),round:r.round,title,body:'',impacts:[],editions:editions(r,stories),breaking:true,at:r.clock});r.bulletins=r.bulletins.slice(-32);
+function publishExtra(r:Room,_title:string,stories:Article[]){
+ // Collect public stories without issuing another notification or paper.
+ r.pressQueue??=[];
+ for(const story of stories){if(story.tag==='다음 국면 예고'||story.tag==='마지막 국면')continue;
+  const index=r.pressQueue.findIndex(a=>a.headline===story.headline);
+  if(index>=0)r.pressQueue[index]=story;else r.pressQueue.push(story);
+ }
+ r.pressQueue=r.pressQueue.slice(-80);
 }
+
 function snapshot(r:Room){return r.players.map(p=>({nation:p.nation,stats:{...p.stats}}));}
 const VOICES:Record<Stat,[string,string]>={
  economy:['가게 계산기가 오랜 휴가를 마치고 복귀하겠네요. 이번엔 경기 회복이 뉴스 자막을 넘어 우리 매출 장부까지 출근해 주길 바랍니다.','경제 전망은 맑음이라는데 우리 가게만 장마인가 봐요. 전망대 위치를 골목 상권 쪽으로 조금 옮겨 주시면 좋겠습니다.'],
@@ -444,7 +477,7 @@ function publicBacklash(r:Room,actor:number,target:number,action:string){
 }
 function solidarity(r:Room,actor:number,target:number){const pair=r.relations?.find(x=>x.a===Math.min(actor,target)&&x.b===Math.max(actor,target));if((pair?.value||0)<15)return;const key=`solidarity:${actor}:${target}`;if(r.pressCooldown![key]&&r.clock-r.pressCooldown![key]<r.duration*1000)return;r.pressCooldown![key]=r.clock;effect(byNation(r,target),{money:6,support:3});voice(r,target,`${short(actor)}의 원조에 시민들까지 모금에 나섰대요. 이런 이웃이라면 믿고 함께해야죠!`,true);publishExtra(r,'이웃을 위한 시민 모금',[{tag:'시민 연대',headline:`${short(actor)}·${short(target)}, 시민이 잇는 우정`,body:'정부의 원조가 자발적인 모금으로 이어졌다. 위기 속에서 오래갈 신뢰가 자란다.',image:4}]);}
 export function jobName(j:Job){return j.action==='crisis-response'?`위기 대응 · ${CRISIS_RESPONSES.find(x=>x.id===j.topic)?.name||''}`:j.action==='policy'?`${(j.policy||CHOICES[j.actor][j.choice!])?.label||'정책'} 시행`:ACTIONS.find(x=>x.id===j.action)?.name||'행동';}
-export function actionDescription(id:string){const lines:Record<string,string>={statement:'국제 관계 개선 · 국민 신뢰 소폭 상승 · 세계 긴장 완화',treaty:'선택한 분야에서 공동 사업을 추진합니다. 상대의 동의와 예산 분담이 필요합니다.',aid:'상대 경제·예산 지원 · 자국 신뢰 개선 · 국내 지지 소폭 하락',sanction:'상대 경제에 큰 압박 · 자국 경제와 신뢰도 손상 · 시민 불매 위험',message:'두 국가에만 전달 · 전송 대기 후 재사용 가능 · 240자 이내',backchannel:'선택한 분야를 비공개로 협력합니다. 제안과 결과는 당사자만 열람합니다.',mobilize:'군사력 상당히 상승 · 지지 소폭 상승 · 국제 신뢰 하락',ultimatum:'양보 시 상대 예산 일부 이전 · 거부 시 긴장 고조 · 불매 운동 위험',war:'양국에 큰 군사·경제·인프라 피해와 인명 피해 · 외교 신뢰 급락',economy:'경제 상당히 상승 · 인프라 소폭 개선 · 실업 완화',support:'국민 지지 크게 상승 · 실업 소폭 완화',infrastructure:'인프라 크게 개선 · 경제 소폭 상승'};return lines[id]||'';}
+export function actionDescription(id:string){const lines:Record<string,string>={statement:'국제 신뢰·지지 개선 · 같은 턴 반복 시 호응 감소, 거듭하면 효과 없음 · 다음 턴 회복',treaty:'선택한 분야에서 공동 사업을 추진합니다. 상대의 동의와 예산 분담이 필요합니다.',aid:'상대 경제·예산 지원 · 자국 신뢰 개선 · 국내 지지 소폭 하락',sanction:'상대 경제에 큰 압박 · 자국 경제와 신뢰도 손상 · 시민 불매 위험',message:'두 국가에만 전달 · 전송 대기 후 재사용 가능 · 240자 이내',backchannel:'선택한 분야를 비공개로 협력합니다. 제안과 결과는 당사자만 열람합니다.',mobilize:'군사력 상당히 상승 · 지지 소폭 상승 · 국제 신뢰 하락',ultimatum:'양보 시 상대 예산 일부 이전 · 거부 시 긴장 고조 · 불매 운동 위험',war:'양국에 큰 군사·경제·인프라 피해와 인명 피해 · 외교 신뢰 급락',economy:'경제 상당히 상승 · 인프라 소폭 개선 · 실업 완화',support:'국민 지지 크게 상승 · 실업 소폭 완화',infrastructure:'인프라 크게 개선 · 경제 소폭 상승'};return lines[id]||'';}
 
 // Server-side, deterministic score-seeking AI. Uses its own pending work and public
 // state only; no future event lookup, hidden opponent orders, or extra resources.
@@ -455,7 +488,7 @@ const AI_EFFECTS:Record<string,Effect>={
 };
 function aiScore(p:Player){const s=p.stats;return .1*(s.economy+s.infrastructure)+.2*(s.support+s.military+s.relations+s[NATIONS[p.nation].goal]);}
 function aiProjection(r:Room,p:Player){const projected={...p,stats:{...p.stats}};for(const j of r.jobs.filter(j=>j.actor===p.nation).sort((a,b)=>a.end-b.end||a.start-b.start)){
- const e=j.action==='policy'?(j.policy||CHOICES[p.nation][j.choice!]).effect:AI_EFFECTS[j.action];if(e)effect(projected,{...e,money:0});
+ const e=j.action==='policy'?(j.policy||CHOICES[p.nation][j.choice!]).effect:j.action==='statement'?statementReturns(p,r.round):AI_EFFECTS[j.action];if(e)effect(projected,{...e,money:0});
  }return projected;}
 function aiMoneyValue(r:Room){return r.round===10?.015:r.round>=8?.045:.085;}
 function aiValue(r:Room,p:Player,e:Effect){const after={...p,stats:{...p.stats}};effect(after,e);const goal=NATIONS[p.nation].goal,threshold=p.nation===0?65:p.nation===2?60:70;
@@ -468,8 +501,8 @@ function runAI(r:Room){for(const p of r.players.filter(p=>p.isAI)){
  // an ultimatum is better for this game's own-score objective than conceding.
  for(const offer of r.offers.filter(o=>o.to===p.nation&&o.status==='pending')){
  const topic=COOPERATION.find(x=>x.id===(offer.topic||'trade'))!;
- const accept=offer.kind!=='ultimatum'&&p.money>=topic.contribution&&aiValue(r,aiProjection(r,p),{...topic.effect,money:-topic.contribution})>0;
- applyCommand(r,p.id,{type:'respond',offerId:offer.id,accept},r.clock);
+ const accept=offer.kind!=='ultimatum'&&aiCooperationAccepts(r,p,offer.from,topic.id);
+ applyCommand(r,p.id,{type:'respond',offerId:offer.id,accept},r.clock);explainAI(r,p,offer.from,`${AI_DIPLOMACY[p.nation].name}·국내 필요·상대 신뢰와 예산을 함께 검토했습니다.`);
  }
  if(p.choice===null){let choice=-1,best=0;const projected=aiProjection(r,p);
  policyChoices(p).forEach((c,i)=>{if(p.money<Math.max(0,-(c.effect.money||0)))return;const value=aiValue(r,projected,c.effect);if(value>best){best=value;choice=i;}});
@@ -478,16 +511,16 @@ function runAI(r:Room){for(const p of r.players.filter(p=>p.isAI)){
  if(r.jobs.filter(j=>j.actor===p.nation&&j.action!=='policy').length>=4)continue;
  const projected=aiProjection(r,p),end=r.deadline+(10-r.round)*r.duration*1000;
  let best=0,selected:Command|undefined;
- for(const a of ACTIONS){const cost=price(r,a,p.nation);if(cost>p.money||r.clock+a.seconds*1000>end||r.jobs.some(j=>j.actor===p.nation&&j.action===a.id))continue;
+ for(const a of ACTIONS){const cost=price(r,a,p.nation);if(cost>p.money-aiReserve(r,p)||r.clock+a.seconds*1000>end||r.jobs.some(j=>j.actor===p.nation&&j.action===a.id))continue;
  if(AI_EFFECTS[a.id]){
- const value=aiValue(r,projected,{...AI_EFFECTS[a.id],money:-cost});
+ const value=aiValue(r,projected,{...(a.id==='statement'?statementReturns(p,r.round):AI_EFFECTS[a.id]),money:-cost});
  if(value>best){best=value;selected={type:'action',action:a.id,...(a.target?{target:r.players.find(x=>x.nation!==p.nation)!.nation}:{})};}
  }else if(a.id==='treaty'){
  for(const target of r.players.filter(x=>x.nation!==p.nation)){
  if((p.history[`aiOffer:${target.nation}`]||-10)>r.round-2||r.offers.some(o=>o.status==='pending'&&(o.from===p.nation&&o.to===target.nation||o.from===target.nation&&o.to===p.nation)))continue;
  for(const topic of COOPERATION){if(target.money<topic.contribution)continue;
  // Estimate acceptance from visible national needs, without reading target jobs.
- if(aiValue(r,target,{...topic.effect,money:-topic.contribution})<=0)continue;
+ if(!aiCooperationAccepts({...r,jobs:[],deals:[]},target,p.nation,topic.id))continue;
  const value=aiValue(r,projected,topic.effect)*(target.isAI?.9:.65)-cost*aiMoneyValue(r);
  if(value>best){best=value;selected={type:'action',action:'treaty',target:target.nation,topic:topic.id};}
  }
@@ -674,12 +707,86 @@ function strategyCommand(r:Room,p:Player,c:Command,now:number){
  if(c.type==='deal_break'){breakDeal(r,d,p.nation);return;}
  assert(d.ask!=='peace','불가침 약속은 기한까지 지켜야 완료됩니다.');const item=DEAL_ITEMS.find(x=>x.id===d.ask)!;assert(p.money>=item.cost,'약속을 이행할 예산이 부족합니다.');p.money-=item.cost;deliverItem(r,d.to,d.from,d.ask);finishDeal(r,d);
 }
+export const AI_DIPLOMACY=[
+ {name:'안보 우선',hint:'위협이 크면 불가침을 원하고, 적대국과의 약속은 신중하게 판단합니다.',wants:['peace','medical'],gives:['medical','materials'],topics:['disaster','health'],margin:.65,reserve:16},
+ {name:'상호 이익',hint:'교역·산업·연구의 실익을 따지고, 손해인 조건에는 다른 지원을 요구합니다.',wants:['materials','research'],gives:['funding','research'],topics:['trade','research'],margin:.35,reserve:12},
+ {name:'자립 기반',hint:'기술과 산업 기반을 선호하고, 현금 지원만으로 의존을 늘리는 거래에는 까다롭습니다.',wants:['research','materials'],gives:['materials','medical'],topics:['research','education'],margin:.75,reserve:18},
+ {name:'신뢰와 규범',hint:'약속을 지킨 상대와 평화·의료 협력을 선호하며, 약속을 깬 상대를 경계합니다.',wants:['medical','peace'],gives:['medical','research'],topics:['health','education'],margin:.3,reserve:10}
+];
+function aiTrust(r:Room,p:Player,other:number){
+ const pair=r.relations?.find(x=>x.a===Math.min(p.nation,other)&&x.b===Math.max(p.nation,other));
+ const broken=(r.deals||[]).filter(d=>d.status==='broken'&&d.brokenBy===other&&[d.from,d.to].includes(p.nation)).length;
+ return (pair?.value||0)/50-broken*(p.nation===3?1.5:.8);
+}
+function aiReserve(r:Room,p:Player){
+ const obligations=(r.deals||[]).filter(d=>d.to===p.nation&&d.status==='active'&&d.ask!=='peace').reduce((n,d)=>n+DEAL_ITEMS.find(x=>x.id===d.ask)!.cost,0);
+ return obligations+(r.round===10?0:AI_DIPLOMACY[p.nation].reserve*(r.round>=8?.5:1));
+}
+function aiItemValue(r:Room,p:Player,id:string){
+ const item=DEAL_ITEMS.find(x=>x.id===id)!;
+ if(id==='peace'){const threat=Math.max(0,...r.players.filter(x=>x.nation!==p.nation).map(x=>x.stats.military-p.stats.military));return r.tension>=55||threat>=20?(p.nation===0?1.8:1.1):(p.nation===3?.5:0);}
+ const actual=aiValue(r,aiProjection(r,p),item.effect);
+ return actual+(actual>0&&AI_DIPLOMACY[p.nation].wants.includes(id)?.45:0)+(id==='medical'&&r.arc?.status==='active'?.7:0);
+}
+export function aiDealAssessment(r:Room,p:Player,from:number,give:string,ask:string){
+ const incoming=DEAL_ITEMS.find(x=>x.id===give)!,owed=DEAL_ITEMS.find(x=>x.id===ask)!;
+ const trust=aiTrust(r,p,from),reward=aiValue(r,aiProjection(r,p),{relations:5,support:2})*.65;
+ const value=aiItemValue(r,p,give)+reward-owed.cost*aiMoneyValue(r)+Math.min(.5,trust*.25)-(trust<0?-trust*.8:0);
+ const affordable=p.money+Math.max(0,incoming.effect.money||0)>=owed.cost+aiReserve(r,p);
+ const accept=affordable&&value>AI_DIPLOMACY[p.nation].margin;
+ const reason=!affordable?'약속 이행 뒤 국내 대응 예산을 남길 수 없어 조건을 바꾸고 싶습니다.':trust<-.5?'최근 갈등과 약속 이행 기록 때문에 더 확실한 대가가 필요합니다.':accept?`${AI_DIPLOMACY[p.nation].name} 관점에서 현재 국가에 도움이 되는 조건입니다.`:`${AI_DIPLOMACY[p.nation].name} 관점에서 지금 필요한 지원과 제안의 대가가 맞지 않습니다.`;
+ return {accept,value,reason};
+}
+export function aiCooperationAccepts(r:Room,p:Player,from:number,topicId:string){
+ const topic=COOPERATION.find(x=>x.id===topicId)!,profile=AI_DIPLOMACY[p.nation],trust=aiTrust(r,p,from);
+ const gain=aiValue(r,aiProjection(r,p),{...topic.effect,money:-topic.contribution});
+ return p.money>=topic.contribution+aiReserve(r,p)&&gain>0&&gain+(profile.topics.includes(topicId)?.35:0)+Math.min(.4,trust*.25)>profile.margin;
+}
+export function aiTradeProposal(r:Room,p:Player,target:Player){
+ const profile=AI_DIPLOMACY[p.nation];let best=0,proposal:{give:string;ask:string}|undefined;
+ for(const give of DEAL_ITEMS.filter(x=>x.id!=='peace')){
+  if(p.money<give.cost+aiReserve(r,p))continue;
+  for(const ask of DEAL_ITEMS){if(ask.id===give.id)continue;
+   const publicRoom={...r,jobs:r.jobs.filter(j=>j.actor===p.nation),deals:[]};const assessment=aiDealAssessment(publicRoom,target,p.nation,give.id,ask.id);
+   // Evaluate the target's public stats only, not their hidden queued actions.
+   const trust=aiTrust(r,p,target.nation),reliability=Math.max(.25,Math.min(.9,.65+trust*.1));
+   const value=(aiItemValue(r,p,ask.id)+aiValue(r,aiProjection(r,p),{relations:5,support:2}))*reliability-give.cost*aiMoneyValue(r)+(profile.gives.includes(give.id)?.15:0);
+   if(assessment.accept&&value>best){best=value;proposal={give:give.id,ask:ask.id};}
+  }
+ }
+ return proposal;
+}
+function explainAI(r:Room,p:Player,to:number,reason:string){const last=[...(r.dispatches||[])].reverse().find(d=>d.from===p.nation&&d.to===to&&d.at===r.clock);if(last)last.text+=` ${reason}`;}
 function runStrategyAI(r:Room,p:Player){if(!r.strategyVersion)return;
- for(const d of r.deals||[]){if(d.to!==p.nation)continue;
- if(d.status==='active'&&d.ask!=='peace'){const cost=DEAL_ITEMS.find(x=>x.id===d.ask)!.cost;if(p.money>=cost)strategyCommand(r,p,{type:'deal_fulfill',dealId:d.id},r.clock);}
- if(d.status==='pending'){const benefit=DEAL_ITEMS.find(x=>x.id===d.give)!,owed=DEAL_ITEMS.find(x=>x.id===d.ask)!;const value=aiValue(r,p,benefit.effect)+aiValue(r,p,{relations:5,support:2})-owed.cost*aiMoneyValue(r);strategyCommand(r,p,{type:'deal_respond',dealId:d.id,accept:value>0&&p.money+Math.max(0,benefit.effect.money||0)>=owed.cost},r.clock);}}
- // Select policies before starting new actions; a following AI tick can respond.
+ for(const d of [...(r.deals||[])]){if(d.to!==p.nation)continue;
+  if(d.status==='active'&&d.ask!=='peace'){const cost=DEAL_ITEMS.find(x=>x.id===d.ask)!.cost;if(p.money>=cost)strategyCommand(r,p,{type:'deal_fulfill',dealId:d.id},r.clock);}
+  if(d.status==='pending'){
+   const verdict=aiDealAssessment(r,p,d.from,d.give,d.ask);
+   const canCounter=!d.counterOf&&p.choice!==null&&r.clock+15000<r.deadline+(10-r.round)*r.duration*1000&&r.deals!.filter(x=>x.from===p.nation&&['pending','active'].includes(x.status)).length<2&&!r.deals!.some(x=>x.from===p.nation&&x.to===d.from&&x.round===r.round&&!['rejected','expired'].includes(x.status));
+   const counter=!verdict.accept&&canCounter?aiTradeProposal(r,p,byNation(r,d.from)):undefined;
+   if(counter)strategyCommand(r,p,{type:'deal_propose',target:d.from,dealId:d.id,...counter},r.clock);
+   else strategyCommand(r,p,{type:'deal_respond',dealId:d.id,accept:verdict.accept},r.clock);
+   explainAI(r,p,d.from,verdict.reason);
+  }
+ }
  if(p.choice===null)return;
- if(r.arc?.status==='active'&&!r.arc.responses.some(x=>x.nation===p.nation&&x.phase===r.arc!.phase)&&!r.jobs.some(j=>j.actor===p.nation&&j.action==='crisis-response')&&r.clock+18000<=r.deadline&&r.jobs.filter(j=>j.actor===p.nation&&j.action!=='policy').length<4){const ready=crisisReadiness(r.arc);const partners=r.players.map(x=>x.nation).sort((a,b)=>a-b),index=partners.indexOf(p.nation);const track=ready.relief&&!ready.research?'research':ready.research&&!ready.relief?'relief':index%2?'research':'relief';const options=CRISIS_RESPONSES.filter(x=>x.track===track).sort((a,b)=>(aiValue(r,p,b.effect)-responseCost(p.nation,b.id)*aiMoneyValue(r))-(aiValue(r,p,a.effect)-responseCost(p.nation,a.id)*aiMoneyValue(r)));const x=options.find(x=>p.money>=responseCost(p.nation,x.id));if(x)strategyCommand(r,p,{type:'crisis_response',response:x.id},r.clock);}
- if(!(p.history[`strategyRound:${r.round}`])&&r.clock<r.deadline-20000){p.history[`strategyRound:${r.round}`]=1;const target=r.players.find(x=>x.nation!==p.nation);if(target){strategyCommand(r,p,{type:'share_intel',target:target.nation},r.clock);const give=p.nation===1?'funding':p.nation===2?'materials':'medical';if(p.money>=DEAL_ITEMS.find(x=>x.id===give)!.cost+20&&r.deals!.filter(d=>d.from===p.nation&&['pending','active'].includes(d.status)).length<2&&!r.deals!.some(d=>d.from===p.nation&&d.to===target.nation&&d.round===r.round&&!['rejected','expired'].includes(d.status))){strategyCommand(r,p,{type:'deal_propose',target:target.nation,give,ask:'peace'},r.clock);}}}
+ if(r.arc?.status==='active'&&!r.arc.responses.some(x=>x.nation===p.nation&&x.phase===r.arc!.phase)&&!r.jobs.some(j=>j.actor===p.nation&&j.action==='crisis-response')&&r.clock+18000<=r.deadline&&r.jobs.filter(j=>j.actor===p.nation&&j.action!=='policy').length<4){
+  const ready=crisisReadiness(r.arc),urgent=r.arc.phase>=2||p.stats.economy<40||p.stats.support<40;
+  const shouldHelp=!ready.relief||!ready.research||ready.nations<2;
+  // Nations weigh their own exposure; no view of other nations' private jobs.
+  const willing=p.nation===3||urgent||p.nation===1&&p.stats.economy<75||p.nation===0&&p.stats.support<65||p.nation===2&&p.stats.infrastructure<55;
+  if(shouldHelp&&willing){const partners=r.players.map(x=>x.nation).sort((a,b)=>a-b),index=partners.indexOf(p.nation),track=ready.relief&&!ready.research?'research':ready.research&&!ready.relief?'relief':index%2?'research':'relief';
+   const options=CRISIS_RESPONSES.filter(x=>x.track===track).sort((a,b)=>(aiValue(r,p,b.effect)-responseCost(p.nation,b.id)*aiMoneyValue(r))-(aiValue(r,p,a.effect)-responseCost(p.nation,a.id)*aiMoneyValue(r)));
+   const x=options.find(x=>p.money>=responseCost(p.nation,x.id)+(urgent?0:aiReserve(r,p)*.5));if(x)strategyCommand(r,p,{type:'crisis_response',response:x.id},r.clock);
+  }
+ }
+ if(!p.history[`strategyRound:${r.round}`]&&r.clock<r.deadline-20000){
+  p.history[`strategyRound:${r.round}`]=1;
+  const candidates=r.players.filter(x=>x.nation!==p.nation).sort((a,b)=>aiTrust(r,p,b.nation)-aiTrust(r,p,a.nation));
+  const target=candidates[0];if(target&&aiTrust(r,p,target.nation)>-1)strategyCommand(r,p,{type:'share_intel',target:target.nation},r.clock);
+  if(r.deals!.filter(d=>d.from===p.nation&&['pending','active'].includes(d.status)).length>=2)return;
+  for(const target of candidates){if(r.deals!.some(d=>d.from===p.nation&&d.to===target.nation&&d.round===r.round&&!['rejected','expired'].includes(d.status)))continue;
+   const proposal=aiTradeProposal(r,p,target);if(proposal){strategyCommand(r,p,{type:'deal_propose',target:target.nation,...proposal},r.clock);explainAI(r,p,target.nation,`${AI_DIPLOMACY[p.nation].name}에 필요한 지원을 맞교환하고 싶습니다.`);break;}
+  }
+ }
 }

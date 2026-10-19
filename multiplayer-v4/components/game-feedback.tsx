@@ -1,8 +1,9 @@
 'use client';
 import {useEffect,useRef,useState} from 'react';
 import {createPortal} from 'react-dom';
-import {AlertTriangle,Sparkles,Mail,Shield,Trophy} from 'lucide-react';
+import {AlertTriangle,Sparkles,Mail,Shield,Trophy,Handshake,CheckCircle2,Landmark} from 'lucide-react';
 import {RoomView,Stat,STAT_NAMES,changeDegree,Reaction,NATIONS,Incident,Dispatch,formatPeople,prioritizeVoices} from '@/lib/game';
+import {outcomeCue,type OutcomeCueData} from '@/lib/outcome-cue';
 export type ChangeFlash={id:string;changes:{stat:Stat;delta:number}[];label:string};
 export function useChangeFlash(room:RoomView|null){
  const previous=useRef<RoomView|null>(null),[flash,setFlash]=useState<ChangeFlash|null>(null),timer=useRef<ReturnType<typeof setTimeout>|null>(null);
@@ -45,4 +46,17 @@ export function EdgeVoices({room}:{room:RoomView|null}){
  },[room]);
  useEffect(()=>()=>{if(timer.current)clearTimeout(timer.current);},[]);
  return <div className="edge-voices" aria-live="polite">{visible.map((v,i)=><aside key={v.id} className={`edge-bubble edge-${i} ${v.urgent?'urgent':''}`}><button onClick={()=>setVisible(x=>x.filter(y=>y.id!==v.id))} aria-label="국민 반응 닫기">×</button><small>{NATIONS[v.nation].short} · 가상 시민</small><b>{v.speaker||'시민의 목소리'}</b><p>{v.text}</p></aside>)}</div>;
+}
+
+export function OutcomeEffects({room}:{room:RoomView|null}){
+ const previous=useRef<RoomView|null>(null),timer=useRef<ReturnType<typeof setTimeout>|null>(null),[cue,setCue]=useState<OutcomeCueData|null>(null);
+ useEffect(()=>{const old=previous.current;previous.current=room;
+  if(old?.code!==room?.code){setCue(null);if(timer.current)clearTimeout(timer.current);return;}
+  const next=outcomeCue(old,room);if(!next)return;
+  setCue(next);if(timer.current)clearTimeout(timer.current);timer.current=setTimeout(()=>setCue(null),3200);
+ },[room]);
+ useEffect(()=>()=>{if(timer.current)clearTimeout(timer.current);},[]);
+ if(!cue)return null;
+ const Icon=cue.kind==='diplomacy'?Handshake:cue.kind==='objective'?Trophy:cue.kind==='build'?Landmark:CheckCircle2;
+ return createPortal(<div key={cue.id} className={`outcome-effect outcome-${cue.kind}`} aria-live="polite"><div className="outcome-wave" aria-hidden="true"/><div className="outcome-lines" aria-hidden="true"><i/><i/><i/></div><div className="outcome-toast"><Icon/><div><strong>{cue.title}</strong><span>{cue.detail}</span></div></div></div>,document.body);
 }

@@ -15,8 +15,8 @@ const seen=new Set();for(let seed=1;seed<=64;seed++){
  const r=start(4,[0,1,2,3],Math.imul(seed,2654435761)>>>0),c=r.climate,definition=CLIMATE_TYPES[c.kind];seen.add(c.kind);assert(definition.nations.includes(c.nation));assert.equal(crisisMarkers(r).length,1);assert.equal(crisisMarkers(r)[0].nation,c.nation);assert(currentEventDescription(r).includes(NATIONS[c.nation].short));
  for(const player of r.players){if(player.nation===c.nation){assert(player.deaths>0);assert(player.eventLosses[definition.name]);assert(player.policies.slice(0,2).every(x=>x.context.includes('자국 피해')));}else{assert.deepEqual(player.stats,NATIONS[player.nation].stats);assert.equal(player.deaths||0,0);assert.equal(player.unemployed||0,0);assert(!player.policies.slice(0,2).some(x=>x.context.includes('자국 피해')));}}
  const action=ACTIONS.find(a=>a.id==='economy');assert.equal(price(r,action,c.nation),Math.ceil(action.cost*1.25));assert.equal(price(r,action,(c.nation+1)%4),action.cost);
- const paper=r.bulletins.find(x=>x.title===currentEventTitle(r));assert(paper);assert(paper.editions.every(ed=>ed.figures.eventTitle===definition.name));assert(paper.editions.find(ed=>ed.nation!==c.nation).figures.eventDeaths===0);
- r.nextEvent=1;tick(r,t+90000);assert.equal(r.climate,undefined);assert.equal(crisisMarkers(r).length,0);
+ assert(r.pressQueue.some(x=>x.headline.includes(definition.name)));assert.equal(r.bulletins.length,0);
+ r.nextEvent=1;tick(r,t+90000);const paper=r.news[0];assert(paper.editions.every(ed=>ed.figures.eventTitle===definition.name));assert.equal(paper.editions.find(ed=>ed.nation!==c.nation).figures.eventDeaths,0);assert.equal(r.climate,undefined);assert.equal(crisisMarkers(r).length,0);
 }
 assert.equal(seen.size,8);
 for(const nations of [[0,2],[1,3]]){const r=start(4,nations);assert(nations.includes(r.climate.nation));assert(CLIMATE_TYPES[r.climate.kind].nations.includes(r.climate.nation));}

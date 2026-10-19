@@ -23,7 +23,7 @@ assert((await api(1)).room.logs.some(l=>l.text.includes('PRIVATE_TEST')));assert
 assert((await api(2)).room.dispatches.some(d=>d.text==='PRIVATE_TEST'));for(const n of [0,1,3])assert(!(await api(n)).room.dispatches.some(d=>d.text==='PRIVATE_TEST'));
 const unauth=await mf.dispatchFetch(`https://game.test/api/game?code=${code}`);assert.equal((await unauth.json()).room,null);
 const wrongOrigin=await mf.dispatchFetch('https://game.test/api/game',{method:'POST',headers:{'Content-Type':'application/json',origin:'https://other.test',cookie:sessions[0]},body:JSON.stringify({type:'action',code,action:'support'})});assert.equal(wrongOrigin.status,403);
-const row=await db.prepare('SELECT state FROM game_rooms WHERE code = ?').bind(code).first();const state=JSON.parse(row.state);state.clock-=901000;state.deadline-=901000;state.jobs=state.jobs.map(j=>({...j,start:j.start-901000,end:j.end-901000}));await db.prepare('UPDATE game_rooms SET state = ? WHERE code = ?').bind(JSON.stringify(state),code).run();out=await api(0);assert.equal(out.room.status,'finished');assert.equal(out.room.news.length,5);assert.equal(out.room.scores.length,4);
+const row=await db.prepare('SELECT state FROM game_rooms WHERE code = ?').bind(code).first();const state=JSON.parse(row.state);state.clock-=901000;state.deadline-=901000;state.jobs=state.jobs.map(j=>({...j,start:j.start-901000,end:j.end-901000}));await db.prepare('UPDATE game_rooms SET state = ? WHERE code = ?').bind(JSON.stringify(state),code).run();out=await api(0);assert.equal(out.room.status,'finished');assert.equal(out.room.news.length,10);assert.equal(out.room.scores.length,4);
 // Verify that reduced games pass the same persisted API path as four-player games.
 for(const nations of [[3,1],[2,0,3]]){
  sessions.fill('');
@@ -39,7 +39,7 @@ for(const nations of [[3,1],[2,0,3]]){
  assert.equal((await api(0,{type:'action',code:smallCode,action:'message',target:nations[1],text:'SMALL_PRIVATE'})).status,200);await new Promise(resolve=>setTimeout(resolve,5200));assert((await api(1)).room.logs.some(l=>l.text.includes('SMALL_PRIVATE')));if(nations.length===3)assert(!(await api(2)).room.logs.some(l=>l.text.includes('SMALL_PRIVATE')));
  assert.equal((await api(4,{type:'join',code:smallCode,name:'late'})).status,400);
  const stored=await db.prepare('SELECT state FROM game_rooms WHERE code = ?').bind(smallCode).first();const game=JSON.parse(stored.state);game.clock-=901000;game.deadline-=901000;await db.prepare('UPDATE game_rooms SET state = ? WHERE code = ?').bind(JSON.stringify(game),smallCode).run();
- small=await api(0);assert.equal(small.room.status,'finished');assert.equal(small.room.scores.length,nations.length);assert.equal(small.room.news.length,5);assert(small.room.news.every(n=>n.impacts.length===nations.length));
+ small=await api(0);assert.equal(small.room.status,'finished');assert.equal(small.room.scores.length,nations.length);assert.equal(small.room.news.length,10);assert(small.room.news.every(n=>n.impacts.length===nations.length));
 }
 console.log('PASS: Worker/D1 2- and 3-player start gates, actual participants, private messages, absent-target rejection, 10-turn results and news');
 // Host AI configuration, join clamping, persisted bot decisions and catch-up.
@@ -62,7 +62,7 @@ aiStored=JSON.parse((await db.prepare('SELECT state FROM game_rooms WHERE code =
 assert(aiStored.jobs.some(j=>aiStored.players.some(p=>p.isAI&&p.nation===j.actor)));
 aiStored.clock-=901000;aiStored.deadline-=901000;aiStored.nextAI-=901000;aiStored.jobs=aiStored.jobs.map(j=>({...j,start:j.start-901000,end:j.end-901000}));
 await db.prepare('UPDATE game_rooms SET state = ? WHERE code = ?').bind(JSON.stringify(aiStored),aiCode).run();
-aiRoom=await api(0);assert.equal(aiRoom.room.status,'finished');assert.equal(aiRoom.room.scores.length,4);assert.equal(aiRoom.room.news.length,5);
+aiRoom=await api(0);assert.equal(aiRoom.room.status,'finished');assert.equal(aiRoom.room.scores.length,4);assert.equal(aiRoom.room.news.length,10);
 console.log('PASS: Worker/D1 host AI controls, solo + 3 AI, join capacity, persisted decisions, reconnect and final results');
 // New negotiations use the same session, compare-and-swap and privacy boundary.
 sessions.fill('');
