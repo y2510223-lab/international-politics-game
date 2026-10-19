@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {createRoom,command,tick,view,canStart,NATIONS,CHOICES,POLICY_SECONDS,price,ACTIONS,score} from '../lib/game.ts';
+import {createRoom,command,tick,view,canStart,NATIONS,CHOICES,POLICY_SECONDS,price,ACTIONS,score,income} from '../lib/game.ts';
 const t=1000000;
 function lobby(humans=1,bots=1,nations=[3,1,2,0]){
  const r=createRoom('AI2345','p0','host',t);r.seed=42;
@@ -24,7 +24,7 @@ for(const [humans,bots] of [[1,1],[1,2],[1,3],[2,1],[2,2],[3,1],[4,0]]){
  // Decisions reserve normal costs; no instantaneous policy or action stat gain.
  assert.deepEqual(p.stats,old.stats);
  const spent=r.jobs.filter(j=>j.actor===p.nation).reduce((sum,j)=>sum+(j.action==='policy'?Math.max(0,-(j.policy.effect.money||0)):price(r,ACTIONS.find(a=>a.id===j.action),p.nation)),0);
- assert(Math.abs(p.money-(old.money+(.055+p.stats.economy/1200+p.stats.infrastructure/2400+(p.nation===2?.015:0))*1.15-spent))<1e-8);
+ assert(Math.abs(p.money-(old.money+income(old,before)-spent))<1e-8);
  assert(r.jobs.filter(j=>j.actor===p.nation).every(j=>j.end>r.clock));
  }
  tick(r,t+900000);assert.equal(r.status,'finished');assert.equal(r.news.length,5);assert.equal(view(r,'p0',r.clock).scores.length,humans+bots);
