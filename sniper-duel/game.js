@@ -491,7 +491,7 @@
     if(!gameStarted||matchEnded||!localInput.standing||!localInput.aiming){showToast("창가에 서서 줌인 조준해야 발사할 수 있습니다.");return;}
     if(Date.now()<(nextShotAt[localRole]||0)){showToast("사격 준비 중 · "+((nextShotAt[localRole]-Date.now())/1000).toFixed(1)+"초");return;}
     if(isHost)handleShot(localRole,localInput.aimX,localInput.aimY);
-    else{send({type:"shoot",aimX:localInput.aimX,aimY:localInput.aimY});showToast("발사 요청 전송",500);}
+    else{send({type:"input",input:sanitize(localInput)});send({type:"shoot",aimX:localInput.aimX,aimY:localInput.aimY});showToast("발사 요청 전송",500);}
   }
   function suppress() {
     if(localRole!=="defender"||!gameStarted||matchEnded)return;
