@@ -7,7 +7,7 @@
 바로 실행: https://y2510223-lab.github.io/international-politics-game/sniper-duel/
 
 
-`sniper-duel/index.html`을 정적 웹 호스팅에 올리면 됩니다. Three.js와 PeerJS를 CDN에서 불러오므로 패키지 설치는 필요하지 않습니다.
+`sniper-duel/index.html`을 정적 웹 호스팅에 올리면 됩니다. Three.js와 Firebase 브라우저 모듈을 CDN에서 불러오므로 패키지 설치는 필요하지 않습니다.
 
 - GitHub Pages: 저장소의 Pages 설정에서 GitHub Actions를 배포 소스로 선택합니다.
 - 배포가 끝나면 `https://y2510223-lab.github.io/international-politics-game/sniper-duel/` 경로에서 실행합니다.
@@ -28,7 +28,7 @@
 - 수비자는 90초를 버티거나 공격자를 명중하면 승리합니다.
 - 발사 후 약 2.8초의 사격 준비 시간이 있습니다.
 - 수비자의 견제 사격은 재사용 대기시간이 있으며 공격자의 조준을 잠시 흔듭니다.
-- 방 코드를 통한 온라인 연결은 PeerJS Cloud 신호 서버와 WebRTC 데이터 연결을 사용합니다. 일부 학교/공용 네트워크에서는 P2P 연결이 차단될 수 있습니다.
+- 방 코드와 실시간 게임 상태는 Firebase Authentication(익명 로그인)과 Realtime Database를 사용합니다. Firebase 콘솔에서 Anonymous 로그인과 Realtime Database가 활성화되어 있어야 합니다.
 
 ## 현재 버전의 한계
 
