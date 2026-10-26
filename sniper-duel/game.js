@@ -190,7 +190,7 @@
     if (data.type === "start" && !hosting) { startGuest(data); return; }
     if (data.type === "snapshot" && !hosting) { applySnapshot(data); return; }
     if (data.type === "shoot" && hosting && gameStarted && !matchEnded && remoteRole) {
-      handleShot(remoteRole,Number(data.aimX)||0,Number(data.aimY)||0); return;
+      handleShot(remoteRole,Number(data.aimX)||0,Number(data.aimY)||0,Number(data.aspect)||0); return;
     }
     if (data.type === "suppress" && hosting && gameStarted && !matchEnded && remoteRole==="defender") { handleSuppress(remoteRole); return; }
     if (data.type === "event" && !hosting && typeof data.message==="string") { setEvent(data.message,false); return; }
@@ -236,13 +236,13 @@
         shotAt:nextShotAt,suppressionUntil:suppressionUntil,nextSuppressAt:nextSuppressAt,event:lastEvent});
     }
   }
-  function handleShot(role, aimX, aimY) {
+  function handleShot(role, aimX, aimY, aspect) {
     if (!isHost || !gameStarted || matchEnded) return;
     var s=getStates()[role], now=Date.now();
     if (!s || !s.standing || !s.aiming) { if(role===localRole)showToast("창가에 서서 조준해야 발사할 수 있습니다."); return; }
     if (now<(nextShotAt[role]||0)) { if(role===localRole)showToast("사격 준비 중 · "+((nextShotAt[role]-now)/1000).toFixed(1)+"초"); return; }
     nextShotAt[role]=now+SHOT_WAIT;
-    var hit=traceShot(role,aimX,aimY);
+    var hit=traceShot(role,aimX,aimY,aspect);
     if (hit==="opponent") {
       shotVisual(role,true,hit); if(role===localRole)showToast("명중! 상대를 맞혔습니다.",900);
       finish(role,LABEL[role]+"가 상대를 명중했습니다.",true); return;
@@ -437,11 +437,11 @@
     var temp=new THREE.Object3D();temp.position.copy(camera.position);temp.lookAt(pose.look);camera.quaternion.slerp(temp.quaternion,Math.min(1,dt*(aim?9:4)));
     camera.fov+=(pose.fov-camera.fov)*Math.min(1,dt*6);camera.updateProjectionMatrix();
   }
-  function traceShot(role, ax, ay) {
+  function traceShot(role, ax, ay, aspect) {
     if(!scene)return "none";
     var statesNow=getStates(),own=statesNow[role]||blank(), enemy=statesNow[other(role)]||blank();
     if(role==="attacker"&&Date.now()<suppressionUntil){ax+=(Math.random()-.5)*.72;ay+=(Math.random()-.5)*.5;}
-    var c=new THREE.PerspectiveCamera(25,window.innerWidth/window.innerHeight,.1,180);
+    var c=new THREE.PerspectiveCamera(25,aspect>0?aspect:window.innerWidth/window.innerHeight,.1,180);
     c.position.set(own.pos*SCALE,1.82,2.45);c.lookAt(own.pos*SCALE,1.94,-20);c.updateMatrixWorld(true);c.updateProjectionMatrix();
     raycaster.setFromCamera(new THREE.Vector2(Math.max(-1,Math.min(1,ax)),Math.max(-1,Math.min(1,ay))),c);
     var tg=new THREE.Mesh(new THREE.SphereGeometry(.67,12,8),new THREE.MeshBasicMaterial());
@@ -491,7 +491,7 @@
     if(!gameStarted||matchEnded||!localInput.standing||!localInput.aiming){showToast("창가에 서서 줌인 조준해야 발사할 수 있습니다.");return;}
     if(Date.now()<(nextShotAt[localRole]||0)){showToast("사격 준비 중 · "+((nextShotAt[localRole]-Date.now())/1000).toFixed(1)+"초");return;}
     if(isHost)handleShot(localRole,localInput.aimX,localInput.aimY);
-    else{send({type:"input",input:sanitize(localInput)});send({type:"shoot",aimX:localInput.aimX,aimY:localInput.aimY});showToast("발사 요청 전송",500);}
+    else{send({type:"input",input:sanitize(localInput)});send({type:"shoot",aimX:localInput.aimX,aimY:localInput.aimY,aspect:window.innerWidth/window.innerHeight});showToast("발사 요청 전송",500);}
   }
   function suppress() {
     if(localRole!=="defender"||!gameStarted||matchEnded)return;
