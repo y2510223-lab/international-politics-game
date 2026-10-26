@@ -454,8 +454,8 @@
   function shotVisual(role,hit,kind) {
     if(!scene)return;
     var s=getStates(),own=s[role]||blank(),enemy=s[other(role)]||blank();
-    var start=new THREE.Vector3(own.pos*SCALE,own.standing?1.7:1.15,role===localRole?1.65:-28.1);
-    var end=kind==="target"?new THREE.Vector3(0,2.35,-17.2):new THREE.Vector3(-enemy.pos*SCALE,enemy.standing?1.2:.7,role===localRole?-28.1:1.8);
+    var start=new THREE.Vector3((role===localRole?1:-1)*own.pos*SCALE,own.standing?1.7:1.15,role===localRole?1.65:-28.1);
+    var end=kind==="target"?new THREE.Vector3(0,2.35,-17.2):new THREE.Vector3((role===localRole?-1:1)*enemy.pos*SCALE,enemy.standing?1.2:.7,role===localRole?-28.1:1.8);
     var line=new THREE.Line(new THREE.BufferGeometry().setFromPoints([start,end]),new THREE.LineBasicMaterial({color:role==="attacker"?0x8ff4e0:0xffb778,transparent:true,opacity:hit ? .95 : .54}));
     scene.add(line);tracers.push({o:line,t:performance.now()+210});
     var geo=new THREE.SphereGeometry(hit ? .13 : .065,8,8),m=new THREE.MeshBasicMaterial({color:hit?0xff765f:0xffb778}),spark=new THREE.Mesh(geo,m);
