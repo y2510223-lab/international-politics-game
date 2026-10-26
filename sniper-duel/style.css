@@ -195,3 +195,18 @@ kbd { display: inline-block; vertical-align: 1px; padding: 2px 4px; margin: 0 1p
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+
+.game-screen.hit-flash::after {
+  content: "";
+  position: absolute;
+  z-index: 7;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, rgba(255, 124, 86, .1), rgba(255, 70, 55, .18));
+  animation: hitFlash .2s ease-out forwards;
+}
+@keyframes hitFlash {
+  from { opacity: .95; }
+  to { opacity: 0; }
+}
