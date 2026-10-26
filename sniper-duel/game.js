@@ -118,7 +118,7 @@
       });
       peer.on("error", function (err) {
         console.warn(err);
-        if (err.type === "unavailable-id") status("방 코드가 겹쳤습니다. 방 만들기를 다시 눌러 주세요.",true);
+        if (err.type === "unavailable-id") { status("방 코드가 겹쳤습니다. 방 만들기를 다시 눌러 주세요.",true); try { if (peer && !peer.destroyed) peer.destroy(); } catch(e) {} peer=null; isHost=false; ui.create.disabled=ui.join.disabled=false; return; }
         else if (err.type === "network" || err.type === "server-error") status("온라인 연결 서버에 접속할 수 없습니다. 잠시 후 다시 시도하세요.",true);
         else status("연결 오류: " + (err.message || err.type || "알 수 없는 오류"),true);
         if (!connected) { ui.create.disabled = ui.join.disabled = false; }
@@ -166,7 +166,7 @@
     conn.on("data", function (data) { onMessage(data,hosting); });
     conn.on("close", function () {
       connected=false;
-      if (gameStarted && !matchEnded) finish(other(localRole),"상대의 연결이 끊겨 작전이 종료되었습니다.",true);
+      if (gameStarted && !matchEnded) finish(localRole,"상대의 연결이 끊겨 작전이 종료되었습니다.",true);
       else { roomStatus("연결이 끊겼습니다. 새로고침 후 다시 시도해 주세요."); status("온라인 연결이 끊겼습니다.",true); ui.start.disabled=true; }
     });
     conn.on("error", function (err) { console.warn(err); status("상대와의 연결에 문제가 생겼습니다.",true); });
@@ -424,7 +424,7 @@
       a.armL.position.y=low ? .7 : 1.04;a.armR.position.y=low?.7:1.04;
       a.legL.position.y=low ? .25 : .33;a.legR.position.y=low?.25:.33;
       a.rifle.position.y=low ? .77 : 1.18;a.marker.position.y=low ? 1.42 : 1.93;
-      a.group.rotation.y=own?Math.PI:0;
+      a.group.rotation.y=own?0:Math.PI;
     }
     update(localAvatar,me,1,2.0,true);update(remoteAvatar,enemy,-1,-28.45,false);
     if(targetRing){targetRing.rotation.z+=dt*.42;targetRing.material.emissiveIntensity=1.7+Math.sin(clock*3)*.5;}
