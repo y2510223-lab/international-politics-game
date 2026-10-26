@@ -679,7 +679,7 @@ import { firebaseConfig } from "../firebase-config.js";
         update(ref(db, oldPath + "/meta"), { closed: true, status: "closed" }).then(function () {
           setTimeout(function () { remove(ref(db, oldPath)).catch(function () {}); }, 1800);
         }).catch(function (err) { console.warn("Room close failed", err); });
-      } else if (!wasHost) {
+      } else if (!wasHost && remoteUid) {
         update(ref(db, oldPath + "/meta"), { guest: null, status: "waiting" })
           .then(function () { return remove(ref(db, oldPath + "/inputs/" + uid)); })
           .catch(function (err) { console.warn("Guest cleanup failed", err); });
