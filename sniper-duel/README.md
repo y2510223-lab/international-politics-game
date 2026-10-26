@@ -4,10 +4,13 @@
 
 ## 실행
 
+바로 실행: https://y2510223-lab.github.io/international-politics-game/sniper-duel/
+
+
 `sniper-duel/index.html`을 정적 웹 호스팅에 올리면 됩니다. Three.js와 PeerJS를 CDN에서 불러오므로 패키지 설치는 필요하지 않습니다.
 
 - GitHub Pages: 저장소의 Pages 설정에서 GitHub Actions를 배포 소스로 선택합니다.
-- 배포가 끝나면 `https://<계정>.github.io/<저장소>/sniper-duel/` 경로에서 실행합니다.
+- 배포가 끝나면 `https://y2510223-lab.github.io/international-politics-game/sniper-duel/` 경로에서 실행합니다.
 - 두 플레이어가 각각 웹 페이지를 열고, 한 명은 방을 만든 뒤 표시되는 6자리 코드를 친구에게 전달합니다.
 - 두 명이 연결되면 방장이 게임을 시작합니다.
 
