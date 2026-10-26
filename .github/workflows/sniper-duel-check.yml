@@ -18,6 +18,6 @@ jobs:
         with:
           node-version: 20
       - name: Check JavaScript syntax
-        run: node --check sniper-duel/game.js
+        run: node --input-type=module --check < sniper-duel/game.js
       - name: Check required game files
         run: test -s sniper-duel/index.html && test -s sniper-duel/style.css && test -s sniper-duel/game.js
