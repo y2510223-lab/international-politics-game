@@ -484,7 +484,7 @@ import { firebaseConfig } from "../firebase-config.js";
   }
   function buildRoom() {
     var g=new THREE.Group();scene.add(g);
-    var floor=mat(0x202938), wall=mat(0x293448), trim=mat(0x536277,{metalness:.32,roughness:.55});
+    var floor=mat(0x374458), wall=mat(0x46556b), trim=mat(0x8191a7,{metalness:.24,roughness:.55});
     addBox(g,0,-.18,3.2,15,.35,12,floor);addBox(g,0,5.35,3.2,15,.22,12,wall);
     addBox(g,-7.3,2.55,3.3,.3,5.4,12,wall);addBox(g,7.3,2.55,3.3,.3,5.4,12,wall);
     addBox(g,0,2.6,9.1,15,5.4,.3,wall);
@@ -499,9 +499,9 @@ import { firebaseConfig } from "../firebase-config.js";
     addBox(g,-4.9,5.16,3.5,1.5,.06,.2,lamp);
   }
   function buildCity() {
-    var base=mat(0x202d40,{roughness:.86,metalness:.16}), dark=mat(0x0d1728,{roughness:.5,metalness:.2});
-    var steel=mat(0x4e627b,{roughness:.44,metalness:.65}), dim=mat(0x18293a,{emissive:0x0d2239,emissiveIntensity:.38});
-    var lit=mat(0x25465b,{emissive:0x1b708b,emissiveIntensity:.9}), tower=new THREE.Group();scene.add(tower);
+    var base=mat(0x34465d,{roughness:.86,metalness:.12}), dark=mat(0x24364b,{roughness:.5,metalness:.12});
+    var steel=mat(0x7b8fa8,{roughness:.44,metalness:.45}), dim=mat(0x263d54,{emissive:0x17324a,emissiveIntensity:.62});
+    var lit=mat(0x477a98,{emissive:0x2c99b9,emissiveIntensity:1.45}), tower=new THREE.Group();scene.add(tower);
     addBox(tower,0,12,-30,18.2,25,1.2,base);
     addBox(tower,-6.5,2.65,-29.25,5,5.2,.13,dark);addBox(tower,6.5,2.65,-29.25,5,5.2,.13,dark);
     addBox(tower,0,.55,-29.25,8.1,.48,.14,steel);addBox(tower,0,4.9,-29.25,8.1,.4,.14,steel);
@@ -514,7 +514,7 @@ import { firebaseConfig } from "../firebase-config.js";
       }
       addBox(tower,0,y-.72,-29.33,17.7,.07,.09,steel);
     }
-    var colors=[0x172438,0x1b263a,0x202d43,0x121e30];
+    var colors=[0x26384f,0x2d4059,0x34465f,0x202f45];
     for(var i=0;i<15;i++){
       var side=i%2===0?-1:1, bx=side*(13+Math.random()*28), z=-12-Math.random()*45;
       var w=4+Math.random()*9,h=9+Math.random()*32,d=4+Math.random()*7;
@@ -525,7 +525,7 @@ import { firebaseConfig } from "../firebase-config.js";
         }
       }
     }
-    var skyline=new THREE.Mesh(new THREE.PlaneGeometry(95,28),new THREE.MeshBasicMaterial({color:0x112039,transparent:true,opacity:.23,side:THREE.DoubleSide}));
+    var skyline=new THREE.Mesh(new THREE.PlaneGeometry(95,28),new THREE.MeshBasicMaterial({color:0x20344e,transparent:true,opacity:.16,side:THREE.DoubleSide}));
     skyline.position.set(0,13,-52);scene.add(skyline);
   }
   function buildTarget() {
@@ -556,16 +556,22 @@ import { firebaseConfig } from "../firebase-config.js";
     return {group:group,torso:torso,head:head,helmet:helmet,face:face,armL:armL,armR:armR,legL:legL,legR:legR,rifle:rifle,marker:marker};
   }
   function initThree() {
-    scene=new THREE.Scene();scene.background=new THREE.Color(0x080d18);scene.fog=new THREE.Fog(0x080d18,38,125);
+    scene=new THREE.Scene();scene.background=new THREE.Color(0x142238);scene.fog=new THREE.Fog(0x142238,58,155);
     renderer=new THREE.WebGLRenderer({canvas:ui.canvas,antialias:true,alpha:false,powerPreference:"high-performance"});
     renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.6));renderer.setSize(window.innerWidth,window.innerHeight);
-    renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.15;
+    renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.55;
     camera=new THREE.PerspectiveCamera(61,window.innerWidth/window.innerHeight,.1,180);camera.position.set(0,2.8,7.5);
     raycaster=new THREE.Raycaster();
-    scene.add(new THREE.HemisphereLight(0x9dbbdf,0x1c2432,1.65));
-    var sun=new THREE.DirectionalLight(0xa8d7ff,2);sun.position.set(-12,18,8);scene.add(sun);
-    var warm=new THREE.PointLight(0xff9e64,7,20);warm.position.set(3.5,4.2,1.7);scene.add(warm);
-    var city=new THREE.PointLight(0x397bba,18,75);city.position.set(0,14,-19);scene.add(city);
+    scene.add(new THREE.HemisphereLight(0xc5dcff,0x4c5668,2.7));
+    var sun=new THREE.DirectionalLight(0xd0e6ff,3.4);sun.position.set(-12,18,8);scene.add(sun);
+    var warm=new THREE.PointLight(0xffbe8b,16,28);warm.position.set(3.5,4.2,1.7);scene.add(warm);
+    var city=new THREE.PointLight(0x5f9cdb,28,90);city.position.set(0,14,-19);scene.add(city);
+    var windowFill = new THREE.PointLight(0xaedbff, 28, 48);
+    windowFill.position.set(0, 3.9, -3.6);
+    scene.add(windowFill);
+    var interiorFill = new THREE.PointLight(0xffd2a3, 12, 24);
+    interiorFill.position.set(-4.4, 4.2, 4.5);
+    scene.add(interiorFill);
     buildRoom();buildCity();buildTarget();
     localAvatar=avatar(0x77edda,0x183942);remoteAvatar=avatar(0xffb36d,0x4b2924);
     scene.add(localAvatar.group);scene.add(remoteAvatar.group);
