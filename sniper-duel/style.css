@@ -91,7 +91,7 @@ kbd { display: inline-block; vertical-align: 1px; padding: 2px 4px; margin: 0 1p
 /* In-game layer */
 .game-screen { position: fixed; inset: 0; z-index: 20; overflow: hidden; background: #070c17; }
 #gameCanvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; outline: none; }
-.game-vignette { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(180deg, rgba(5,9,18,.75) 0%, transparent 23%, transparent 65%, rgba(4,8,16,.89) 100%), radial-gradient(ellipse at center, transparent 38%, rgba(3,7,14,.42) 100%); }
+.game-vignette { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(180deg, rgba(5,9,18,.24) 0%, transparent 20%, transparent 76%, rgba(4,8,16,.34) 100%), radial-gradient(ellipse at center, transparent 52%, rgba(3,7,14,.12) 100%); }
 .game-topbar { position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; min-height: 78px; padding: 14px 25px; border-bottom: 1px solid rgba(174,196,225,.13); background: rgba(6,11,20,.52); backdrop-filter: blur(14px); }
 .wordmark-game { font-size: 12px; }
 .wordmark-game .mark-icon { width: 26px; height: 26px; font-size: 15px; }
@@ -209,4 +209,12 @@ kbd { display: inline-block; vertical-align: 1px; padding: 2px 4px; margin: 0 1p
 @keyframes hitFlash {
   from { opacity: .95; }
   to { opacity: 0; }
+}
+
+
+/* Visibility pass: keep the cinematic mood without obscuring the play field. */
+.game-screen { background: #142238; }
+.game-vignette { mix-blend-mode: normal; }
+.mission-chip, .game-topbar, .movement-hint, .action-button, .leave-button {
+  text-shadow: 0 1px 2px rgba(0,0,0,.45);
 }
