@@ -1,0 +1,23 @@
+name: WINDOWLINE checks
+on:
+  push:
+    branches: [main]
+    paths:
+      - "sniper-duel/**"
+      - ".github/workflows/sniper-duel-check.yml"
+  pull_request:
+    paths:
+      - "sniper-duel/**"
+      - ".github/workflows/sniper-duel-check.yml"
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Check JavaScript syntax
+        run: node --check sniper-duel/game.js
+      - name: Check required game files
+        run: test -s sniper-duel/index.html && test -s sniper-duel/style.css && test -s sniper-duel/game.js
