@@ -129,30 +129,62 @@
       cleanup(); isHost=false; ui.create.disabled=ui.join.disabled=false;
     }
   }
+  function clearJoinTimer() {
+    if (joinTimer) { clearTimeout(joinTimer); joinTimer = null; }
+  }
+
+  function failJoin(message) {
+    if (!joinPending && !peer && !conn) return;
+    joinPending = false;
+    clearJoinTimer();
+    status(message, true);
+    ui.create.disabled = ui.join.disabled = false;
+    try { if (conn) conn.close(); } catch (e) {}
+    try { if (peer && !peer.destroyed) peer.destroy(); } catch (e) {}
+    conn = null; peer = null; connected = false;
+    localRole = null; remoteRole = null; remoteUid = null;
+  }
+
   function joinRoom() {
     if (peer) return;
     localName = cleanName(ui.name.value);
-    roomCode = ui.joinCode.value.toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,6);
-    if (roomCode.length !== 6) { status("6자리 방 코드를 입력하세요.",true); return; }
-    isHost=false; ui.create.disabled=ui.join.disabled=true; status("방을 찾는 중입니다…");
+    roomCode = ui.joinCode.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
+    if (roomCode.length !== 6) { status("6자리 방 코드를 입력하세요.", true); return; }
+    if (!window.Peer) { status("온라인 연결 모듈을 불러오지 못했습니다. 페이지를 새로고침해 주세요.", true); return; }
+    isHost = false; joinPending = true;
+    ui.create.disabled = ui.join.disabled = true;
+    status("온라인 신호 서버에 접속 중…");
+    clearJoinTimer();
+    joinTimer = setTimeout(function () {
+      failJoin("연결 시간이 초과됐습니다. 방 코드가 정확해도 신호 서버에 접속하지 못했을 수 있습니다. 새로고침 후 다시 시도해 주세요.");
+    }, 18000);
     try {
-      peer = new Peer({debug:0});
+      peer = new Peer({ debug: 1 });
       peer.on("open", function () {
-        conn = peer.connect("wl-" + roomCode.toLowerCase(), {reliable:true,serialization:"json"});
-        attach(conn,false);
+        if (!joinPending) return;
+        status("방 코드 확인 중…");
+        conn = peer.connect("wl-" + roomCode.toLowerCase(), { reliable: true, serialization: "json" });
+        attach(conn, false);
       });
       peer.on("error", function (err) {
-        console.warn(err);
-        if (err.type === "peer-unavailable") status("해당 방을 찾지 못했습니다. 코드를 확인해 주세요.",true);
-        else status("연결 오류: " + (err.message || err.type),true);
-        ui.create.disabled=ui.join.disabled=false;
+        console.warn("PeerJS join error", err);
+        if (err.type === "peer-unavailable") failJoin("이 방을 찾지 못했습니다. 방장이 만든 코드가 맞는지, 방이 아직 열려 있는지 확인하세요.");
+        else if (err.type === "network" || err.type === "server-error" || err.type === "socket-error" || err.type === "socket-closed")
+          failJoin("온라인 신호 서버에 연결하지 못했습니다. 학교/공용 네트워크가 PeerJS 연결을 차단했을 수 있습니다.");
+        else failJoin("연결 오류: " + (err.message || err.type || "알 수 없는 오류"));
       });
-      peer.on("disconnected", function () { if (peer && !peer.destroyed) { try { peer.reconnect(); } catch(e) {} } });
-    } catch (err) { status(err.message || "방에 참가하지 못했습니다.",true); cleanup(); ui.create.disabled=ui.join.disabled=false; }
+      peer.on("disconnected", function () {
+        if (joinPending) failJoin("신호 서버 연결이 끊어졌습니다. 페이지를 새로고침한 뒤 다시 시도해 주세요.");
+        else if (peer && !peer.destroyed) { try { peer.reconnect(); } catch (e) {} }
+      });
+    } catch (err) {
+      failJoin(err.message || "방에 참가하지 못했습니다.");
+    }
   }
   function attach(connection, hosting) {
     conn = connection;
     conn.on("open", function () {
+      if (!hosting) { joinPending = false; clearJoinTimer(); }
       connected = true;
       if (hosting) {
         roomStatus("상대 연결 완료 · 작전을 시작할 수 있습니다");
@@ -165,11 +197,19 @@
     });
     conn.on("data", function (data) { onMessage(data,hosting); });
     conn.on("close", function () {
+      if (!hosting && !connected) {
+        failJoin("방 연결이 닫혔습니다. 방 코드와 상대의 대기실 상태를 확인하세요.");
+        return;
+      }
       connected=false;
       if (gameStarted && !matchEnded) finish(localRole,"상대의 연결이 끊겨 작전이 종료되었습니다.",true);
       else { roomStatus("연결이 끊겼습니다. 새로고침 후 다시 시도해 주세요."); status("온라인 연결이 끊겼습니다.",true); ui.start.disabled=true; }
     });
-    conn.on("error", function (err) { console.warn(err); status("상대와의 연결에 문제가 생겼습니다.",true); });
+    conn.on("error", function (err) {
+      console.warn("Data connection error", err);
+      if (!hosting && !connected) failJoin("방 연결에 실패했습니다. 방장이 대기실을 열어 두었는지 확인하고 다시 시도해 주세요.");
+      else status("상대와의 연결에 문제가 생겼습니다.", true);
+    });
   }
   function onMessage(data, hosting) {
     if (!data || typeof data !== "object") return;
