@@ -1,3 +1,8 @@
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
+import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
+import { getDatabase, ref, get, set, update, remove, onValue, onChildAdded, push } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-database.js";
+import { firebaseConfig } from "../firebase-config.js";
+
 (function () {
   "use strict";
   var $ = function (id) { return document.getElementById(id); };
@@ -19,7 +24,10 @@
   var LABEL = { attacker:"공격자", defender:"수비자" };
   var OTHER = { attacker:"defender", defender:"attacker" };
   var ROUND = 90, SHOT_WAIT = 2800, SUPPRESS_WAIT = 7000, SUPPRESS_TIME = 1900, SCALE = 5.2;
-  var peer = null, conn = null, isHost = false, localRole = null, remoteRole = null;
+  var isHost = false, localRole = null, remoteRole = null;
+  var firebaseApp = null, auth = null, db = null, firebaseUser = null, authPromise = null;
+  var roomPath = "", remoteUid = null, roomUnsubs = [], listenersActive = false;
+  var lastRemoteEventAt = 0;
   var roomCode = "", localName = "플레이어", remoteName = "상대";
   var connected = false, remoteReady = false, gameStarted = false, matchEnded = false;
   var endsAt = 0, nextShotAt = { attacker:0, defender:0 }, nextSuppressAt = 0, suppressionUntil = 0;
@@ -43,8 +51,94 @@
     ui.status.classList.toggle("is-error", !!error);
   }
   function roomStatus(message) { ui.roomStatus.textContent = message; ui.roomHelp.textContent = message; }
+  function withTimeout(promise, ms, message) {
+    return new Promise(function (resolve, reject) {
+      var done = false;
+      var timer = setTimeout(function () {
+        if (done) return;
+        done = true;
+        reject(new Error(message || "연결 시간이 초과됐습니다."));
+      }, ms);
+      Promise.resolve(promise).then(function (value) {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        resolve(value);
+      }).catch(function (err) {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        reject(err);
+      });
+    });
+  }
+
+  function ensureFirebaseAuth() {
+    if (firebaseUser) return Promise.resolve(firebaseUser);
+    if (!authPromise) {
+      try {
+        firebaseApp = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+        auth = getAuth(firebaseApp);
+        db = getDatabase(firebaseApp);
+        authPromise = withTimeout(
+          signInAnonymously(auth).then(function (credential) {
+            firebaseUser = credential.user;
+            return firebaseUser;
+          }),
+          12000,
+          "Firebase 로그인 대기 시간이 초과됐습니다. 인터넷 또는 Firebase 연결을 확인하세요."
+        ).catch(function (err) {
+          authPromise = null;
+          throw err;
+        });
+      } catch (err) {
+        authPromise = null;
+        return Promise.reject(err);
+      }
+    }
+    return authPromise;
+  }
+
+  function firebaseRef(suffix) {
+    return ref(db, roomPath + (suffix ? "/" + suffix : ""));
+  }
+
   function send(data) {
-    try { if (conn && conn.open) conn.send(data); } catch (e) { console.warn("Send failed", e); }
+    if (!roomPath || !firebaseUser || !db || !data) return Promise.resolve();
+    var uid = firebaseUser.uid;
+    var task;
+    if (data.type === "input") {
+      task = set(firebaseRef("inputs/" + uid), sanitize(data.input || blank()));
+    } else if (data.type === "snapshot") {
+      data.sentAt = Date.now();
+      task = set(firebaseRef("snapshot"), data);
+    } else if (data.type === "start") {
+      data.startedAt = Date.now();
+      task = set(firebaseRef("meta/match"), data).then(function () {
+        return update(firebaseRef("meta"), { status: "playing" });
+      });
+    } else if (data.type === "event") {
+      task = set(firebaseRef("meta/event"), { message: data.message || "", at: Date.now() });
+    } else if (data.type === "end") {
+      task = set(firebaseRef("meta/result"), {
+        winner: data.winner,
+        reason: data.reason || "작전 종료",
+        at: Date.now()
+      }).then(function () {
+        return update(firebaseRef("meta"), { status: "finished" });
+      });
+    } else if (data.type === "shoot" || data.type === "suppress") {
+      data.input = sanitize(data.input || localInput);
+      task = set(firebaseRef("inputs/" + uid), data.input).then(function () {
+        return push(firebaseRef("events"), { sender: uid, data: data, at: Date.now() });
+      });
+    } else {
+      task = push(firebaseRef("events"), { sender: uid, data: data, at: Date.now() });
+    }
+    return Promise.resolve(task).catch(function (err) {
+      console.warn("Firebase sync error", err);
+      status("온라인 동기화 오류: " + (err && err.message ? err.message : "Firebase 연결을 확인하세요."), true);
+    });
   }
   function showToast(message, ms) {
     ui.toast.textContent = message; ui.toast.classList.add("visible");
@@ -71,7 +165,7 @@
     var now = performance.now();
     if (!force && now-lastInputSend < 65) return;
     lastInputSend = now;
-    if (conn && conn.open && gameStarted) send({type:"input",input:sanitize(localInput)});
+    if (roomPath && firebaseUser && gameStarted) send({type:"input",input:sanitize(localInput)});
   }
   function setInput(values, force) {
     localInput = sanitize(Object.assign({},localInput,values));
@@ -98,143 +192,182 @@
     return states;
   }
 
-  function createRoom() {
-    if (peer) return;
-    isHost = true; localName = cleanName(ui.name.value);
-    setRole(ui.role.value === "defender" ? "defender" : "attacker");
-    ui.create.disabled = ui.join.disabled = true; status("온라인 연결을 준비하고 있습니다…");
-    roomCode = roomCode6();
-    try {
-      peer = new Peer("wl-" + roomCode.toLowerCase(), {debug:0});
-      peer.on("open", function () {
-        ui.roomPanel.hidden = false; ui.roomCode.textContent = roomCode;
-        ui.start.disabled = true; ui.start.textContent = "상대 접속 후 시작";
-        roomStatus("상대 플레이어를 기다리는 중");
-        status("방이 생성됐습니다. 코드를 친구에게 공유하세요.");
-      });
-      peer.on("connection", function (incoming) {
-        if (conn && conn.open) { incoming.on("open",function(){incoming.send({type:"busy"});}); setTimeout(function(){incoming.close();},300); return; }
-        attach(incoming,true);
-      });
-      peer.on("error", function (err) {
-        console.warn(err);
-        if (err.type === "unavailable-id") { status("방 코드가 겹쳤습니다. 방 만들기를 다시 눌러 주세요.",true); try { if (peer && !peer.destroyed) peer.destroy(); } catch(e) {} peer=null; isHost=false; ui.create.disabled=ui.join.disabled=false; return; }
-        else if (err.type === "network" || err.type === "server-error") status("온라인 연결 서버에 접속할 수 없습니다. 잠시 후 다시 시도하세요.",true);
-        else status("연결 오류: " + (err.message || err.type || "알 수 없는 오류"),true);
-        if (!connected) { ui.create.disabled = ui.join.disabled = false; }
-      });
-      peer.on("disconnected", function () { if (peer && !peer.destroyed) { try { peer.reconnect(); } catch(e) {} } });
-    } catch (err) {
-      status(err.message || "온라인 연결을 시작하지 못했습니다.",true);
-      cleanup(); isHost=false; ui.create.disabled=ui.join.disabled=false;
-    }
-  }
-  function clearJoinTimer() {
-    if (joinTimer) { clearTimeout(joinTimer); joinTimer = null; }
+  function listenToRoom() {
+    if (!roomPath || listenersActive) return;
+    listenersActive = true;
+    roomUnsubs.push(onValue(firebaseRef("meta"), function (snapshot) {
+      var meta = snapshot.val();
+      if (!meta) {
+        if (connected && !isHost) status("방이 종료됐습니다. 새 방 코드를 받아 주세요.", true);
+        return;
+      }
+      if (meta.closed) {
+        status("방 연결이 종료됐습니다. 새 방을 만들거나 참가하세요.", true);
+        if (!isHost && gameStarted && !matchEnded) finish(localRole, "방장이 작전실을 닫았습니다.", false);
+        return;
+      }
+      if (isHost) {
+        if (meta.guest && meta.guest.uid && meta.guest.uid !== firebaseUser.uid) {
+          remoteUid = meta.guest.uid;
+          remoteName = cleanName(meta.guest.name);
+          remoteRole = other(localRole);
+          remoteReady = true;
+          connected = true;
+          ui.start.disabled = false;
+          ui.start.textContent = "작전 시작";
+          roomStatus(remoteName + " 접속 완료 · 작전을 시작할 수 있습니다");
+          status("상대가 연결됐습니다. 작전을 시작하세요.");
+        } else if (remoteReady && !meta.guest) {
+          remoteReady = false;
+          remoteUid = null;
+          remoteInput = blank();
+          ui.start.disabled = true;
+          ui.start.textContent = "상대 접속 후 시작";
+          roomStatus("상대가 나갔습니다. 다른 플레이어를 기다리는 중");
+        }
+      } else {
+        if (meta.host && meta.host.uid) {
+          remoteUid = meta.host.uid;
+          remoteName = cleanName(meta.host.name);
+          if (!localRole) setRole(other(meta.host.role));
+          roomStatus(remoteName + "의 방에 연결됨 · " + LABEL[localRole] + " 역할");
+        }
+        if (meta.event && Number(meta.event.at) > lastRemoteEventAt) {
+          lastRemoteEventAt = Number(meta.event.at);
+          setEvent(String(meta.event.message || ""), false);
+        }
+        if (meta.match && !gameStarted) startGuest(meta.match);
+        if (meta.result && !matchEnded) finish(meta.result.winner, meta.result.reason || "작전 종료", false);
+      }
+    }, function (err) {
+      console.warn("Room metadata listener failed", err);
+      status("방 정보를 읽을 수 없습니다. Firebase 데이터베이스 권한을 확인하세요.", true);
+    }));
+    roomUnsubs.push(onValue(firebaseRef("inputs"), function (snapshot) {
+      var allInputs = snapshot.val() || {};
+      if (remoteUid && allInputs[remoteUid]) {
+        remoteInput = sanitize(allInputs[remoteUid]);
+        if (remoteRole) states[remoteRole] = remoteInput;
+      }
+    }, function (err) {
+      console.warn("Input listener failed", err);
+      status("플레이어 상태를 동기화하지 못했습니다.", true);
+    }));
+    roomUnsubs.push(onValue(firebaseRef("snapshot"), function (snapshot) {
+      if (!isHost && snapshot.exists() && gameStarted && !matchEnded) applySnapshot(snapshot.val());
+    }));
+    roomUnsubs.push(onChildAdded(firebaseRef("events"), function (snapshot) {
+      var item = snapshot.val();
+      if (!item || !item.data || item.sender === (firebaseUser && firebaseUser.uid) || !isHost) return;
+      if (Date.now() - Number(item.at || 0) > 15000) return;
+      if ((item.data.type === "shoot" || item.data.type === "suppress") && item.data.input && remoteRole) {
+        remoteInput = sanitize(item.data.input);
+        states[remoteRole] = remoteInput;
+      }
+      onMessage(item.data, true);
+    }, function (err) {
+      console.warn("Action listener failed", err);
+      status("상대 행동을 받을 수 없습니다. Firebase 데이터베이스 권한을 확인하세요.", true);
+    }));
   }
 
-  function failJoin(message) {
-    if (!joinPending && !peer && !conn) return;
-    joinPending = false;
-    clearJoinTimer();
-    status(message, true);
-    ui.create.disabled = ui.join.disabled = false;
-    try { if (conn) conn.close(); } catch (e) {}
-    try { if (peer && !peer.destroyed) peer.destroy(); } catch (e) {}
-    conn = null; peer = null; connected = false;
-    localRole = null; remoteRole = null; remoteUid = null;
+  function createRoom() {
+    if (roomPath) return;
+    isHost = true;
+    localName = cleanName(ui.name.value);
+    setRole(ui.role.value === "defender" ? "defender" : "attacker");
+    ui.create.disabled = ui.join.disabled = true;
+    status("Firebase 온라인 인증을 준비하고 있습니다…");
+    withTimeout(ensureFirebaseAuth(), 14000, "온라인 인증 시간이 초과됐습니다. 인터넷 연결을 확인하세요.").then(async function () {
+      var made = false;
+      for (var attempt = 0; attempt < 8 && !made; attempt++) {
+        roomCode = roomCode6();
+        roomPath = "rooms/windowline_" + roomCode;
+        var existing = await withTimeout(get(firebaseRef("meta")), 10000, "기존 방 확인 시간이 초과됐습니다.");
+        var current = existing.val();
+        if (existing.exists() && current && !current.closed) {
+          roomPath = "";
+          continue;
+        }
+        if (existing.exists()) await remove(firebaseRef(""));
+        await set(firebaseRef("meta"), {
+          roomCode: roomCode, status: "waiting", createdAt: Date.now(),
+          host: { uid: firebaseUser.uid, name: localName, role: localRole },
+          guest: null, closed: false
+        });
+        await set(firebaseRef("inputs/" + firebaseUser.uid), blank());
+        made = true;
+      }
+      if (!made) throw new Error("사용 가능한 방 코드를 만들지 못했습니다. 다시 시도하세요.");
+      connected = true; remoteReady = false;
+      ui.roomPanel.hidden = false; ui.roomCode.textContent = roomCode;
+      ui.start.disabled = true; ui.start.textContent = "상대 접속 후 시작";
+      roomStatus("상대 플레이어를 기다리는 중");
+      status("방이 생성됐습니다. 코드를 친구에게 공유하세요.");
+      listenToRoom();
+    }).catch(function (err) {
+      console.error("Create room failed", err);
+      var message = err && err.code === "auth/operation-not-allowed"
+        ? "Firebase 익명 로그인이 꺼져 있습니다. Firebase Authentication에서 Anonymous 로그인을 켜야 합니다."
+        : (err && (err.code === "PERMISSION_DENIED" || err.code === "permission_denied")
+          ? "Firebase 데이터베이스 접근이 거부됐습니다. 데이터베이스 권한을 확인하세요."
+          : (err && err.message ? err.message : "온라인 방을 만들지 못했습니다."));
+      status("방 생성 실패: " + message, true);
+      cleanupRoom(false); isHost = false; localRole = null; remoteRole = null;
+      ui.create.disabled = ui.join.disabled = false;
+    });
   }
 
   function joinRoom() {
-    if (peer) return;
+    if (roomPath) return;
     localName = cleanName(ui.name.value);
     roomCode = ui.joinCode.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
     if (roomCode.length !== 6) { status("6자리 방 코드를 입력하세요.", true); return; }
-    if (!window.Peer) { status("온라인 연결 모듈을 불러오지 못했습니다. 페이지를 새로고침해 주세요.", true); return; }
-    isHost = false; joinPending = true;
+    isHost = false;
     ui.create.disabled = ui.join.disabled = true;
-    status("온라인 신호 서버에 접속 중…");
-    clearJoinTimer();
-    joinTimer = setTimeout(function () {
-      failJoin("연결 시간이 초과됐습니다. 방 코드가 정확해도 신호 서버에 접속하지 못했을 수 있습니다. 새로고침 후 다시 시도해 주세요.");
-    }, 18000);
-    try {
-      peer = new Peer({ debug: 1 });
-      peer.on("open", function () {
-        if (!joinPending) return;
-        status("방 코드 확인 중…");
-        conn = peer.connect("wl-" + roomCode.toLowerCase(), { reliable: true, serialization: "json" });
-        attach(conn, false);
-      });
-      peer.on("error", function (err) {
-        console.warn("PeerJS join error", err);
-        if (err.type === "peer-unavailable") failJoin("이 방을 찾지 못했습니다. 방장이 만든 코드가 맞는지, 방이 아직 열려 있는지 확인하세요.");
-        else if (err.type === "network" || err.type === "server-error" || err.type === "socket-error" || err.type === "socket-closed")
-          failJoin("온라인 신호 서버에 연결하지 못했습니다. 학교/공용 네트워크가 PeerJS 연결을 차단했을 수 있습니다.");
-        else failJoin("연결 오류: " + (err.message || err.type || "알 수 없는 오류"));
-      });
-      peer.on("disconnected", function () {
-        if (joinPending) failJoin("신호 서버 연결이 끊어졌습니다. 페이지를 새로고침한 뒤 다시 시도해 주세요.");
-        else if (peer && !peer.destroyed) { try { peer.reconnect(); } catch (e) {} }
-      });
-    } catch (err) {
-      failJoin(err.message || "방에 참가하지 못했습니다.");
-    }
-  }
-  function attach(connection, hosting) {
-    conn = connection;
-    conn.on("open", function () {
-      if (!hosting) { joinPending = false; clearJoinTimer(); }
+    status("Firebase에 접속한 뒤 방 코드를 확인하는 중…");
+    withTimeout(ensureFirebaseAuth(), 14000, "온라인 인증 시간이 초과됐습니다. 인터넷 연결을 확인하세요.").then(async function () {
+      roomPath = "rooms/windowline_" + roomCode;
+      var found = await withTimeout(get(firebaseRef("meta")), 10000, "방 확인 시간이 초과됐습니다.");
+      var meta = found.val();
+      if (!meta || !meta.host || meta.closed) throw new Error("이 방을 찾지 못했습니다. 방장이 만든 코드를 확인하고 대기실을 열어 두었는지 확인하세요.");
+      if (meta.host.uid === firebaseUser.uid) throw new Error("방을 만든 브라우저에서는 참가할 수 없습니다. 다른 브라우저나 기기에서 참가하세요.");
+      if (meta.guest && meta.guest.uid && meta.guest.uid !== firebaseUser.uid) throw new Error("이 방에는 이미 다른 참가자가 있습니다.");
+      if (meta.match && !meta.result) throw new Error("이미 대전이 시작된 방입니다. 새 방 코드를 받아 주세요.");
+      setRole(other(meta.host.role));
+      remoteUid = meta.host.uid;
+      remoteName = cleanName(meta.host.name);
       connected = true;
-      if (hosting) {
-        roomStatus("상대 연결 완료 · 작전을 시작할 수 있습니다");
-        ui.start.disabled = false; ui.start.textContent = "작전 시작";
-        send({type:"welcome",role:localRole,hostName:localName,roomCode:roomCode});
-      } else {
-        status("방에 연결됐습니다. 상대의 준비를 확인하는 중…");
-        send({type:"ready",name:localName});
-      }
-    });
-    conn.on("data", function (data) { onMessage(data,hosting); });
-    conn.on("close", function () {
-      if (!hosting && !connected) {
-        failJoin("방 연결이 닫혔습니다. 방 코드와 상대의 대기실 상태를 확인하세요.");
-        return;
-      }
-      connected=false;
-      if (gameStarted && !matchEnded) finish(localRole,"상대의 연결이 끊겨 작전이 종료되었습니다.",true);
-      else { roomStatus("연결이 끊겼습니다. 새로고침 후 다시 시도해 주세요."); status("온라인 연결이 끊겼습니다.",true); ui.start.disabled=true; }
-    });
-    conn.on("error", function (err) {
-      console.warn("Data connection error", err);
-      if (!hosting && !connected) failJoin("방 연결에 실패했습니다. 방장이 대기실을 열어 두었는지 확인하고 다시 시도해 주세요.");
-      else status("상대와의 연결에 문제가 생겼습니다.", true);
+      ui.roomPanel.hidden = false;
+      ui.roomCode.textContent = roomCode;
+      roomStatus(remoteName + "의 방에 연결됨 · " + LABEL[localRole] + " 역할");
+      listenToRoom();
+      await set(firebaseRef("inputs/" + firebaseUser.uid), blank());
+      await update(firebaseRef("meta"), {
+        guest: { uid: firebaseUser.uid, name: localName, role: localRole, joinedAt: Date.now() },
+        status: "waiting"
+      });
+      status("방에 연결됐습니다. 방장이 작전을 시작할 때까지 기다리세요.");
+    }).catch(function (err) {
+      console.error("Join room failed", err);
+      var message = err && err.code === "auth/operation-not-allowed"
+        ? "Firebase 익명 로그인이 꺼져 있습니다. Firebase Authentication에서 Anonymous 로그인을 켜야 합니다."
+        : (err && (err.code === "PERMISSION_DENIED" || err.code === "permission_denied")
+          ? "Firebase 데이터베이스 접근이 거부됐습니다. 데이터베이스 권한을 확인하세요."
+          : (err && err.message ? err.message : "방에 참가하지 못했습니다."));
+      status("참가 실패: " + message, true);
+      cleanupRoom(false); isHost = false; localRole = null; remoteRole = null;
+      ui.create.disabled = ui.join.disabled = false;
     });
   }
+
   function onMessage(data, hosting) {
     if (!data || typeof data !== "object") return;
-    if (data.type === "busy") { status("이 방에는 이미 플레이어가 있습니다.",true); return; }
-    if (data.type === "welcome" && !hosting) {
-      setRole(other(data.role)); remoteName=cleanName(data.hostName);
-      ui.roomPanel.hidden=false; ui.roomCode.textContent=roomCode;
-      roomStatus(remoteName + "의 방에 연결됨 · " + LABEL[localRole] + " 역할");
-      status("연결 완료. 방장이 시작하면 대전이 시작됩니다."); return;
-    }
-    if (data.type === "ready" && hosting) {
-      remoteName=cleanName(data.name); remoteReady=true; ui.start.disabled=false;
-      ui.start.textContent="작전 시작"; roomStatus(remoteName+" 접속 완료 · 작전을 시작할 수 있습니다"); return;
-    }
-    if (data.type === "input" && hosting && data.input && remoteRole) {
-      remoteInput=sanitize(data.input); states[remoteRole]=remoteInput; return;
-    }
-    if (data.type === "start" && !hosting) { startGuest(data); return; }
-    if (data.type === "snapshot" && !hosting) { applySnapshot(data); return; }
     if (data.type === "shoot" && hosting && gameStarted && !matchEnded && remoteRole) {
-      handleShot(remoteRole,Number(data.aimX)||0,Number(data.aimY)||0,Number(data.aspect)||0); return;
+      handleShot(remoteRole, Number(data.aimX) || 0, Number(data.aimY) || 0, Number(data.aspect) || 0);
+    } else if (data.type === "suppress" && hosting && gameStarted && !matchEnded && remoteRole === "defender") {
+      handleSuppress(remoteRole);
     }
-    if (data.type === "suppress" && hosting && gameStarted && !matchEnded && remoteRole==="defender") { handleSuppress(remoteRole); return; }
-    if (data.type === "event" && !hosting && typeof data.message==="string") { setEvent(data.message,false); return; }
-    if (data.type === "end" && !hosting && !matchEnded) { finish(data.winner,data.reason,false); return; }
   }
   function startHost() {
     if (!isHost || !connected || !remoteReady || gameStarted) return;
@@ -270,8 +403,8 @@
   function updateHost(now) {
     if (!isHost || !gameStarted || matchEnded) return;
     if (now>=endsAt) { finish("defender","제한 시간 동안 공격자가 표적을 명중하지 못했습니다.",true); return; }
-    if (now>=lastSnapshot && conn && conn.open) {
-      lastSnapshot=now+85;
+    if (now>=lastSnapshot && connected && isHost) {
+      lastSnapshot=now+150;
       send({type:"snapshot",inputs:getStates(),timeLeft:Math.max(0,Math.ceil((endsAt-now)/1000)),
         shotAt:nextShotAt,suppressionUntil:suppressionUntil,nextSuppressAt:nextSuppressAt,event:lastEvent});
     }
@@ -315,7 +448,7 @@
   }
   function setEvent(message, broadcast) {
     lastEvent=message; ui.event.textContent=message;
-    if(broadcast && isHost && conn && conn.open && gameStarted)send({type:"event",message:message});
+    if(broadcast && isHost && gameStarted)send({type:"event",message:message});
   }
   function updateHud(time) {
     if(!gameStarted)return;
@@ -531,25 +664,42 @@
     if(!gameStarted||matchEnded||!localInput.standing||!localInput.aiming){showToast("창가에 서서 줌인 조준해야 발사할 수 있습니다.");return;}
     if(Date.now()<(nextShotAt[localRole]||0)){showToast("사격 준비 중 · "+((nextShotAt[localRole]-Date.now())/1000).toFixed(1)+"초");return;}
     if(isHost)handleShot(localRole,localInput.aimX,localInput.aimY);
-    else{send({type:"input",input:sanitize(localInput)});send({type:"shoot",aimX:localInput.aimX,aimY:localInput.aimY,aspect:window.innerWidth/window.innerHeight});showToast("발사 요청 전송",500);}
+    else{send({type:"shoot",aimX:localInput.aimX,aimY:localInput.aimY,aspect:window.innerWidth/window.innerHeight,input:sanitize(localInput)});showToast("발사 요청 전송",500);}
   }
   function suppress() {
     if(localRole!=="defender"||!gameStarted||matchEnded)return;
-    if(isHost)handleSuppress(localRole);else send({type:"suppress"});
+    if(isHost)handleSuppress(localRole);else send({type:"suppress",input:sanitize(localInput)});
   }
-  function cleanup() {
-    try{if(conn)conn.close();}catch(e){}try{if(peer&&!peer.destroyed)peer.destroy();}catch(e){}
-    conn=null;peer=null;
-  }
-  function toLobby() {
-    if(isHost&&conn&&conn.open)send({type:"end",winner:other(localRole),reason:"플레이어가 작전실로 나갔습니다."});
-    gameStarted=false;matchEnded=false;localInput=blank();remoteInput=blank();states={attacker:blank(),defender:blank()};
-    ui.result.hidden=true;ui.error.hidden=true;ui.game.hidden=true;ui.lobby.hidden=false;
-    ui.create.disabled=false;ui.join.disabled=false;ui.start.disabled=true;ui.start.textContent="상대 접속 후 시작";
-    ui.roomPanel.hidden=true;ui.roomCode.textContent="------";connected=false;remoteReady=false;isHost=false;localRole=null;remoteRole=null;
-    cleanup();updateButtons();status("대기실로 돌아왔습니다. 새 작전실을 만들거나 방 코드로 참가하세요.");
+  function cleanupRoom(removeHostRoom) {
+    var oldPath = roomPath, wasHost = isHost, uid = firebaseUser && firebaseUser.uid;
+    roomUnsubs.forEach(function (unsubscribe) { try { unsubscribe(); } catch (e) {} });
+    roomUnsubs = []; listenersActive = false;
+    if (oldPath && db && uid) {
+      if (wasHost && removeHostRoom) {
+        update(ref(db, oldPath + "/meta"), { closed: true, status: "closed" }).then(function () {
+          setTimeout(function () { remove(ref(db, oldPath)).catch(function () {}); }, 1800);
+        }).catch(function (err) { console.warn("Room close failed", err); });
+      } else if (!wasHost) {
+        update(ref(db, oldPath + "/meta"), { guest: null, status: "waiting" })
+          .then(function () { return remove(ref(db, oldPath + "/inputs/" + uid)); })
+          .catch(function (err) { console.warn("Guest cleanup failed", err); });
+      }
+    }
+    roomPath = ""; remoteUid = null; connected = false; remoteReady = false;
   }
 
+  function toLobby() {
+    cleanupRoom(!!isHost);
+    gameStarted = false; matchEnded = false; localInput = blank(); remoteInput = blank();
+    states = { attacker: blank(), defender: blank() };
+    ui.result.hidden = true; ui.error.hidden = true; ui.game.hidden = true; ui.lobby.hidden = false;
+    ui.create.disabled = false; ui.join.disabled = false; ui.start.disabled = true;
+    ui.start.textContent = "상대 접속 후 시작";
+    ui.roomPanel.hidden = true; ui.roomCode.textContent = "------";
+    isHost = false; localRole = null; remoteRole = null;
+    updateButtons();
+    status("대기실로 돌아왔습니다. 새 작전실을 만들거나 방 코드로 참가하세요.");
+  }
   ui.create.addEventListener("click",createRoom);
   ui.join.addEventListener("click",joinRoom);
   ui.start.addEventListener("click",startHost);
