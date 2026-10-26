@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#080d18">
+  <title>WINDOWLINE — 1 vs 1 저격 대전</title>
+  <link rel="stylesheet" href="./style.css">
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <script defer src="./game.js"></script>
+</head>
+<body>
+  <main id="lobbyScreen" class="lobby-screen">
+    <header class="site-header">
+      <a class="wordmark" href="./" aria-label="WINDOWLINE 홈"><span class="mark-icon">W</span><span>WINDOW<span class="wordmark-light">LINE</span></span></a>
+      <div class="header-status"><span class="live-dot"></span> 2 PLAYER ONLINE DUEL</div>
+    </header>
+
+    <section class="lobby-layout">
+      <div class="lobby-copy">
+        <p class="eyebrow"><span class="eyebrow-line"></span> HIGH-RISE ENGAGEMENT / 001</p>
+        <h1>한 발의 선택,<br><em>90초의 승부.</em></h1>
+        <p class="intro-copy">마주 보는 고층 빌딩, 하나의 표적, 그리고 단 한 번의 빈틈. 창가를 따라 낮게 이동하고, 몸을 일으켜 조준하는 순간부터 당신의 위치가 드러납니다.</p>
+        <div class="feature-row">
+          <div class="feature-item"><span class="feature-index">01</span><span>3D 고층 빌딩 환경</span></div>
+          <div class="feature-item"><span class="feature-index">02</span><span>실시간 1대1 대전</span></div>
+          <div class="feature-item"><span class="feature-index">03</span><span>역할별 승리 조건</span></div>
+        </div>
+        <div class="fine-print">브라우저 게임 · 설치 불필요 · 친구와 방 코드로 연결</div>
+      </div>
+
+      <section class="lobby-card" aria-labelledby="lobby-title">
+        <div class="card-topline"><span>MISSION SETUP</span><span class="card-seq">WL-01</span></div>
+        <h2 id="lobby-title">작전실 <span> / CREATE OR JOIN</span></h2>
+
+        <label class="field-label" for="playerName">호출명</label>
+        <input id="playerName" class="text-input" maxlength="16" autocomplete="nickname" placeholder="플레이어 이름" value="플레이어">
+
+        <label class="field-label" for="hostRole">방을 만들 때 역할</label>
+        <select id="hostRole" class="text-input select-input">
+          <option value="attacker">공격자 — 제한 시간 내 표적 명중</option>
+          <option value="defender">수비자 — 90초 동안 저격 방해</option>
+        </select>
+
+        <button id="createRoomBtn" class="button button-primary"><span>새 작전실 만들기</span><span class="button-arrow">↗</span></button>
+
+        <div class="separator"><span>또는 방 코드로 참가</span></div>
+        <div class="join-row">
+          <input id="joinCode" class="text-input code-input" maxlength="6" autocapitalize="characters" autocomplete="off" placeholder="6자리 코드" aria-label="방 코드">
+          <button id="joinRoomBtn" class="button button-secondary">참가</button>
+        </div>
+
+        <div id="roomPanel" class="room-panel" hidden>
+          <div class="room-panel-heading"><span class="live-dot"></span><span id="roomStatus">상대 플레이어를 기다리는 중</span></div>
+          <div class="room-code-row"><span id="roomCode" class="room-code">------</span><button id="copyCodeBtn" class="copy-button" type="button">코드 복사</button></div>
+          <p id="roomHelp" class="room-help">친구에게 이 코드를 보내세요. 두 명이 연결되면 시작할 수 있습니다.</p>
+          <button id="startMatchBtn" class="button button-primary" disabled>상대 접속 후 시작</button>
+        </div>
+
+        <p id="lobbyStatus" class="lobby-status" role="status">준비 완료 · 온라인 플레이를 시작하세요.</p>
+      </section>
+
+      <aside class="rules-card">
+        <div class="card-topline"><span>FIELD MANUAL</span><span class="card-seq">RULES 01—03</span></div>
+        <h2>한눈에 보는 규칙</h2>
+        <div class="rule-row">
+          <span class="rule-number">01</span>
+          <div><h3>벽을 따라 이동</h3><p><kbd>A</kbd> <kbd>D</kbd> 또는 방향키로 창문 벽을 따라 기어가세요. 창가에서 벗어날 수 없습니다.</p></div>
+        </div>
+        <div class="rule-row">
+          <span class="rule-number">02</span>
+          <div><h3>일어서서 조준</h3><p><kbd>SPACE</kbd>로 창가에 서고 조준 버튼 또는 마우스 오른쪽 버튼으로 줌인하세요. 서 있는 상태에서만 발사할 수 있습니다.</p></div>
+        </div>
+        <div class="rule-row">
+          <span class="rule-number">03</span>
+          <div><h3>한 발 뒤의 대기 시간</h3><p>발사 후 약 2.8초 동안 다음 사격을 준비합니다. 수비자는 <kbd>Q</kbd>로 견제 사격을 해 공격자의 조준을 흔들 수 있습니다.</p></div>
+        </div>
+        <div class="win-condition">
+          <div class="win-condition-title">승리 조건</div>
+          <div class="win-line"><span class="role-mark attacker-mark"></span><p><strong>공격자</strong><br>90초 안에 중앙 표적 또는 상대를 명중</p></div>
+          <div class="win-line"><span class="role-mark defender-mark"></span><p><strong>수비자</strong><br>시간을 버티거나 공격자를 명중</p></div>
+        </div>
+        <p class="legal-note">게임 내 가상 대전입니다. 실제 장소나 사람을 대상으로 한 행동과 무관합니다.</p>
+      </aside>
+    </section>
+    <footer class="site-footer"><span>WINDOWLINE / PROTOTYPE 01</span><span>THREE.JS · WEBRTC · FRIENDS ONLY</span></footer>
+  </main>
+
+  <section id="gameScreen" class="game-screen" hidden aria-label="3D 게임 화면">
+    <canvas id="gameCanvas" aria-label="3D 빌딩 대전 장면"></canvas>
+    <div class="game-vignette"></div>
+    <div class="game-topbar">
+      <a class="wordmark wordmark-game" href="#" id="gameWordmark"><span class="mark-icon">W</span><span>WINDOW<span class="wordmark-light">LINE</span></span></a>
+      <div class="match-center"><span class="match-label">ENGAGEMENT TIMER</span><strong id="timerText">01:30</strong></div>
+      <div class="role-status"><span id="roleDot" class="role-mark attacker-mark"></span><span id="roleText">공격자</span><span class="connection-indicator"><span class="live-dot"></span> 연결됨</span></div>
+    </div>
+
+    <div class="mission-hud">
+      <div class="mission-chip"><span class="hud-label">현재 목표</span><strong id="objectiveText">표적 또는 상대 명중</strong></div>
+      <div class="mission-chip mission-status"><span class="hud-label">상황 보고</span><strong id="eventText">창가를 따라 이동하세요.</strong></div>
+    </div>
+
+    <div id="crosshair" class="crosshair" aria-hidden="true"><span></span><i></i></div>
+    <div id="suppressionFX" class="suppression-fx" hidden>SUPPRESSED <span>조준 흔들림</span></div>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <div class="hud-bottom">
+      <div class="movement-hint"><span class="hint-key">A</span><span class="hint-key">D</span><span>벽 따라 이동</span><span class="hint-divider"></span><span class="hint-key">SPACE</span><span>일어서기</span></div>
+      <div class="action-controls">
+        <button id="stanceBtn" class="action-button" type="button"><span class="action-icon">↕</span><span id="stanceBtnText">창가에 서기</span><kbd>SPACE</kbd></button>
+        <button id="aimBtn" class="action-button" type="button" disabled><span class="action-icon">⌖</span><span id="aimBtnText">조준하기</span><kbd>RMB</kbd></button>
+        <button id="suppressBtn" class="action-button suppress-button" type="button" hidden><span class="action-icon">≋</span><span>견제 사격</span><kbd>Q</kbd></button>
+        <button id="fireBtn" class="action-button fire-button" type="button" disabled><span class="action-icon">✦</span><span id="fireBtnText">발사</span><kbd>CLICK</kbd></button>
+      </div>
+      <button id="leaveBtn" class="leave-button" type="button">작전실로 나가기 ↗</button>
+    </div>
+
+    <div id="resultOverlay" class="result-overlay" hidden>
+      <div class="result-card">
+        <p class="eyebrow"><span class="eyebrow-line"></span> MISSION COMPLETE</p>
+        <h2 id="resultTitle">작전 종료</h2>
+        <p id="resultReason">결과가 여기에 표시됩니다.</p>
+        <p id="resultRole" class="result-role"></p>
+        <button id="rematchBtn" class="button button-primary">다시 대기실로</button>
+      </div>
+    </div>
+    <div id="errorOverlay" class="error-overlay" hidden>
+      <div><strong>3D 화면을 시작할 수 없습니다.</strong><p>브라우저가 WebGL을 지원하는지 확인하거나 Chrome 최신 버전에서 다시 시도하세요.</p><button id="errorBackBtn" class="button button-secondary">대기실로 돌아가기</button></div>
+    </div>
+  </section>
+</body>
+</html>
