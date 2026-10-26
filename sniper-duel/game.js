@@ -301,9 +301,9 @@
 
   function mat(color, opts) {
     opts=opts||{};
-    return new THREE.MeshStandardMaterial({color:color,roughness:opts.roughness===undefined?.78:opts.roughness,
-      metalness:opts.metalness===undefined?.08:opts.metalness,emissive:opts.emissive||0,
-      emissiveIntensity:opts.emissiveIntensity||0,transparent:!!opts.transparent,opacity:opts.opacity===undefined?1:opts.opacity,
+    return new THREE.MeshStandardMaterial({color:color,roughness:opts.roughness === undefined ? .78 : opts.roughness,
+      metalness:opts.metalness === undefined ? .08 : opts.metalness,emissive:opts.emissive||0,
+      emissiveIntensity:opts.emissiveIntensity||0,transparent:!!opts.transparent,opacity:opts.opacity === undefined ? 1 : opts.opacity,
       side:opts.side===undefined?THREE.FrontSide:opts.side});
   }
   function addBox(parent,x,y,z,sx,sy,sz,m) {
@@ -419,11 +419,11 @@
       var x=state.pos*SCALE*sign;
       a.group.position.x+=(x-a.group.position.x)*Math.min(1,dt*7);a.group.position.z=z;
       var low=!state.standing,y=low?.55:0;a.group.position.y+=(y-a.group.position.y)*Math.min(1,dt*8);
-      a.torso.scale.y=low?.72:1;a.torso.position.y=low?.65:1.02;
+      a.torso.scale.y=low ? .72 : 1;a.torso.position.y=low ? .65 : 1.02;
       a.head.position.y=low?1.03:1.52;a.helmet.position.y=low?1.08:1.57;a.face.position.y=low?1.03:1.52;
-      a.armL.position.y=low?.7:1.04;a.armR.position.y=low?.7:1.04;
-      a.legL.position.y=low?.25:.33;a.legR.position.y=low?.25:.33;
-      a.rifle.position.y=low?.77:1.18;a.marker.position.y=low?1.42:1.93;
+      a.armL.position.y=low ? .7 : 1.04;a.armR.position.y=low?.7:1.04;
+      a.legL.position.y=low ? .25 : .33;a.legR.position.y=low?.25:.33;
+      a.rifle.position.y=low ? .77 : 1.18;a.marker.position.y=low ? 1.42 : 1.93;
       a.group.rotation.y=own?Math.PI:0;
     }
     update(localAvatar,me,1,2.0,true);update(remoteAvatar,enemy,-1,-28.45,false);
@@ -456,11 +456,11 @@
     var s=getStates(),own=s[role]||blank(),enemy=s[other(role)]||blank();
     var start=new THREE.Vector3(own.pos*SCALE,own.standing?1.7:1.15,role===localRole?1.65:-28.1);
     var end=kind==="target"?new THREE.Vector3(0,2.35,-17.2):new THREE.Vector3(-enemy.pos*SCALE,enemy.standing?1.2:.7,role===localRole?-28.1:1.8);
-    var line=new THREE.Line(new THREE.BufferGeometry().setFromPoints([start,end]),new THREE.LineBasicMaterial({color:role==="attacker"?0x8ff4e0:0xffb778,transparent:true,opacity:hit?.95:.54}));
+    var line=new THREE.Line(new THREE.BufferGeometry().setFromPoints([start,end]),new THREE.LineBasicMaterial({color:role==="attacker"?0x8ff4e0:0xffb778,transparent:true,opacity:hit ? .95 : .54}));
     scene.add(line);tracers.push({o:line,t:performance.now()+210});
-    var geo=new THREE.SphereGeometry(hit?.13:.065,8,8),m=new THREE.MeshBasicMaterial({color:hit?0xff765f:0xffb778}),spark=new THREE.Mesh(geo,m);
+    var geo=new THREE.SphereGeometry(hit ? .13 : .065,8,8),m=new THREE.MeshBasicMaterial({color:hit?0xff765f:0xffb778}),spark=new THREE.Mesh(geo,m);
     spark.position.copy(end);scene.add(spark);sparks.push({o:spark,t:performance.now()+430,g:geo,m:m});
-    if(lightFlash){lightFlash.intensity=hit?17:8;lightFlash.position.copy(start;}
+    if(lightFlash){lightFlash.intensity=hit?17:8;lightFlash.position.copy(start);}
     ui.game.classList.remove("hit-flash");void ui.game.offsetWidth;if(hit)ui.game.classList.add("hit-flash");
     setTimeout(function(){ui.game.classList.remove("hit-flash");},200);
   }
