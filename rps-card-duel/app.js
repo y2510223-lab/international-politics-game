@@ -275,11 +275,43 @@ async function joinRoom(){
   }finally{$("joinRoomButton").disabled=false;}
 }
 function setError(msg){$("setupError").textContent=msg||"";}
+function arrayValue(value){
+  if(Array.isArray(value))return value;
+  if(value&&typeof value==="object"){
+    return Object.keys(value)
+      .filter(key=>/^\\d+$/.test(key))
+      .sort((a,b)=>Number(a)-Number(b))
+      .map(key=>value[key]);
+  }
+  return [];
+}
+function normalizeGameState(state){
+  // Firebase Realtime Database omits empty arrays (for example discard: []).
+  // Restore every collection before any game action can call .push(), .shift(),
+  // .filter(), .findIndex(), or read .length.
+  state.deck=arrayValue(state.deck);
+  state.discard=arrayValue(state.discard);
+  state.market=arrayValue(state.market);
+  state.marketOrder=arrayValue(state.marketOrder);
+  state.players=state.players||{};
+  for(const seat of ["p1","p2"]){
+    const player=state.players[seat];
+    if(!player)continue;
+    player.hand=arrayValue(player.hand);
+    const savedField=arrayValue(player.field);
+    player.field=Array.from({length:6},(_,index)=>savedField[index]||false);
+    if(typeof player.score!=="number")player.score=0;
+  }
+  return state;
+}
 async function mutate(fn){
   if(!roomRef)throw new Error("방에 연결되어 있지 않습니다.");
   const tx=await runTransaction(roomRef,current=>{
     if(!current)return;
-    const next=copy(current);if(fn(next)===false)return;next.updatedAt=Date.now();return next;
+    const next=normalizeGameState(copy(current));
+    if(fn(next)===false)return;
+    next.updatedAt=Date.now();
+    return next;
   },{applyLocally:false});
   if(!tx.committed)throw new Error("지금은 행동할 수 없거나 상태가 변경되었습니다.");
   return tx.snapshot.val();
