@@ -234,7 +234,18 @@ async function joinRoom(){
     if(current.status!=="lobby")throw new Error("이 방은 이미 게임이 시작되었거나 종료되었습니다.");
     if(current.players?.p2)throw new Error("이 방은 이미 두 명이 참가했습니다. 방장에게 새 방을 만들어 달라고 요청하세요.");
 
-    const tx=await runTransaction(targetRef,latest=>{
+    // Realtime Database transactions may call the updater with null on the
+    // first local pass even when the room exists on the server. Use the room
+    // snapshot just fetched as that first-pass value; the server hash check
+    // will rerun the updater with the latest authoritative room if it changed.
+    const roomFromServer=current;
+    let usedPrefetchedRoom=false;
+    const tx=await runTransaction(targetRef,localValue=>{
+      let latest=localValue;
+      if(latest===null&&!usedPrefetchedRoom){
+        latest=roomFromServer;
+        usedPrefetchedRoom=true;
+      }
       if(!latest||latest.status!=="lobby")return;
       if(latest.players?.p2){
         if(latest.players.p2.uid===currentUser.uid)return latest;
@@ -248,12 +259,12 @@ async function joinRoom(){
     },{applyLocally:false});
 
     const joined=tx.snapshot?.val();
-    if(!tx.committed && joined?.players?.p2?.uid!==currentUser.uid && joined?.players?.p1?.uid!==currentUser.uid){
-      throw new Error("방 참가가 완료되지 않았습니다. 방이 가득 찼거나 상태가 바뀌었을 수 있습니다.");
-    }
     const finalState=joined || (await get(targetRef)).val();
     if(finalState?.players?.p2?.uid===currentUser.uid)watchRoom(code,"p2");
     else if(finalState?.players?.p1?.uid===currentUser.uid)watchRoom(code,"p1");
+    else if(finalState?.status!=="lobby")throw new Error("이 방은 이미 게임이 시작되었거나 종료되었습니다. 새 방을 만들어 주세요.");
+    else if(finalState?.players?.p2)throw new Error("이 방은 이미 다른 플레이어가 참가했습니다. 방장에게 새 방을 만들어 달라고 요청하세요.");
+    else if(!tx.committed)throw new Error("방 참가 트랜잭션이 완료되지 않았습니다. 인터넷 연결을 확인하고 다시 시도해 주세요.");
     else throw new Error("방 참가 확인에 실패했습니다. 다시 시도해 주세요.");
   }catch(e){
     const message=e?.code==="PERMISSION_DENIED"||e?.code==="permission-denied"
