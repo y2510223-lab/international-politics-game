@@ -192,6 +192,9 @@ function setupFirebase(){
 function path(code){return ROOM_ROOT+"/"+code;}
 function watchRoom(code,seat){
   if(offRoom)offRoom();roomCode=code;mySeat=seat;roomRef=ref(db,path(code));
+  // sessionStorage is isolated per browser tab: it supports refresh/reconnect
+  // without mistaking a second tab on the same Firebase anonymous UID as the same seat.
+  sessionStorage.setItem("rps-card-duel-seat:"+code,JSON.stringify({seat,uid:currentUser?.uid||""}));
   offRoom=onValue(roomRef,snap=>{
     room=snap.val();
     if(!room){toast("방이 삭제되었거나 존재하지 않습니다.");home();return;}
@@ -221,10 +224,13 @@ async function joinRoom(){
     const initial=await get(targetRef);
     if(!initial.exists())throw new Error("해당 초대 코드의 방을 찾을 수 없습니다. 방장에게 새 코드를 확인해 주세요.");
     const current=initial.val();
-    // 같은 브라우저에서 새로고침하거나 재접속한 플레이어는 기존 좌석으로 복귀한다.
-    // p2를 우선 확인해 한 브라우저의 두 번째 탭으로 테스트한 경우도 다시 연결할 수 있다.
-    if(current.players?.p2?.uid===currentUser.uid){watchRoom(code,"p2");return;}
-    if(current.players?.p1?.uid===currentUser.uid){watchRoom(code,"p1");return;}
+    // 이 탭(sessionStorage)에 저장된 좌석만 재접속 좌석으로 인정한다.
+    // 같은 브라우저의 새 탭은 별도 참가자로 취급되어 p2에 입장할 수 있다.
+    let savedSeat=null;
+    try{savedSeat=JSON.parse(sessionStorage.getItem("rps-card-duel-seat:"+code)||"null");}catch{}
+    if(savedSeat?.uid===currentUser.uid&&["p1","p2"].includes(savedSeat.seat)&&current.players?.[savedSeat.seat]?.uid===currentUser.uid){
+      watchRoom(code,savedSeat.seat);return;
+    }
     if(current.status!=="lobby")throw new Error("이 방은 이미 게임이 시작되었거나 종료되었습니다.");
     if(current.players?.p2)throw new Error("이 방은 이미 두 명이 참가했습니다. 방장에게 새 방을 만들어 달라고 요청하세요.");
 
