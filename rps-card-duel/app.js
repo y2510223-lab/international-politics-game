@@ -70,6 +70,7 @@ function nextTurn(state){
     ["p1","p2"].forEach(s=>{const p=state.players[s];state.discard.push(...p.hand);p.hand=draw(state,2);});
     state.lastMessage="짝수 턴 종료: 손패를 모두 버리고 2장씩 드로우했습니다.";
   }
+  state.turnNumber=ended+1;
   beginTurn(state,other(state.attackerSeat));
 }
 function beginSpells(state){
@@ -166,7 +167,6 @@ function setupFirebase(){
   onAuthStateChanged(auth,user=>{
     currentUser=user;$("connectionBadge").textContent=user?"온라인 연결":"연결 중";
     $("connectionBadge").classList.toggle("online",!!user);
-    if(!user)signInAnonymously(auth).catch(e=>{$("setupError").textContent="Firebase 로그인 실패: "+e.message;});
   });
   signInAnonymously(auth).catch(e=>{$("setupError").textContent="Firebase 연결 실패: "+e.message;});
 }
@@ -341,10 +341,11 @@ function renderField(id,targetSeat,opponentView){
   const offsets=opponentView?[3,0]:[0,3];
   const destroyTarget=pendingMagic?.type==="magicDestroy"&&room.phase==="spells"&&room.activeSeat===mySeat&&targetSeat===other(mySeat);
   const canPlace=room.phase==="placement"&&room.activeSeat===mySeat&&selectedCard&&!opponentView;
+  const canReinforce=room.phase==="spells"&&room.activeSeat===mySeat&&pendingMagic?.type==="magicReinforce"&&pendingUnit&&!opponentView;
   box.innerHTML=[0,1,2].map(lane=>{
     const slots=offsets.map(offset=>{
       const index=lane+offset,card=field[index],back=opponentView&&!reveal;
-      const click=(!card&&canPlace)||(!!card&&destroyTarget);
+      const click=(!card&&(canPlace||canReinforce))||(!!card&&destroyTarget);
       const cls="field-slot "+(card?"occupied":"empty")+(click?" clickable":"")+(destroyTarget&&card?" targetable":"");
       const inner=card?fieldCard(card,back):"";
       return '<button type="button" class="'+cls+'" data-field-side="'+(opponentView?"opponent":"mine")+'" data-field-index="'+index+'" '+(click?"":"disabled")+'>'+inner+'</button>';
