@@ -97,8 +97,8 @@ function resolveLane(state,lane,log){
       if(b.type==="specialPaper")state.players.p2.score++;
       log.push("무승부");break;
     }
-    if(result>0){state.discard.push(b);bf[lane]=bf[lane+3]||null;bf[lane+3]=null;log.push("내 카드 승리");}
-    else{state.discard.push(a);af[lane]=af[lane+3]||null;af[lane+3]=null;log.push("상대 카드 승리");}
+    if(result>0){state.discard.push(b);bf[lane]=bf[lane+3]||false;bf[lane+3]=false;log.push("내 카드 승리");}
+    else{state.discard.push(a);af[lane]=af[lane+3]||false;af[lane+3]=false;log.push("상대 카드 승리");}
   }
   const ac=countLane(af,lane),bc=countLane(bf,lane);if(ac===bc)return;
   const winner=ac>bc?"p1":"p2",loser=other(winner),wf=state.players[winner].field,lf=state.players[loser].field;
@@ -275,30 +275,30 @@ async function joinRoom(){
   }finally{$("joinRoomButton").disabled=false;}
 }
 function setError(msg){$("setupError").textContent=msg||"";}
-function arrayValue(value){
+function arrayValue(value,preserveSlots=false){
   if(Array.isArray(value))return value;
   if(value&&typeof value==="object"){
-    return Object.keys(value)
-      .filter(key=>/^\\d+$/.test(key))
-      .sort((a,b)=>Number(a)-Number(b))
-      .map(key=>value[key]);
+    const keys=Object.keys(value).filter(key=>/^\d+$/.test(key)).sort((a,b)=>Number(a)-Number(b));
+    if(!keys.length)return [];
+    if(!preserveSlots)return keys.map(key=>value[key]);
+    const length=Math.max(...keys.map(Number))+1;
+    return Array.from({length},(_,index)=>Object.prototype.hasOwnProperty.call(value,String(index))?value[index]:false);
   }
   return [];
 }
 function normalizeGameState(state){
-  // Firebase Realtime Database omits empty arrays (for example discard: []).
-  // Restore every collection before any game action can call .push(), .shift(),
-  // .filter(), .findIndex(), or read .length.
+  // Realtime Database can omit empty arrays and serializes sparse arrays as objects.
+  // Restore collections before any game action calls push(), shift(), filter(), or length.
   state.deck=arrayValue(state.deck);
   state.discard=arrayValue(state.discard);
-  state.market=arrayValue(state.market);
+  state.market=arrayValue(state.market,true);
   state.marketOrder=arrayValue(state.marketOrder);
   state.players=state.players||{};
   for(const seat of ["p1","p2"]){
     const player=state.players[seat];
     if(!player)continue;
     player.hand=arrayValue(player.hand);
-    const savedField=arrayValue(player.field);
+    const savedField=arrayValue(player.field,true);
     player.field=Array.from({length:6},(_,index)=>savedField[index]||false);
     if(typeof player.score!=="number")player.score=0;
   }
