@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#182333">
+  <title>승부수 | 온라인 카드 대전</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="승부수 홈">
+        <span class="brand-mark">VS</span>
+        <span class="brand-copy"><strong>승부수</strong><small>ONLINE CARD DUEL</small></span>
+      </a>
+      <div class="topbar-right">
+        <span id="connectionBadge" class="connection-badge">연결 중</span>
+        <button id="settingsToggle" class="gear-button" type="button" aria-label="설정" title="설정">⚙</button>
+        <div id="settingsMenu" class="settings-menu hidden">
+          <div class="settings-title">빠른 설정</div>
+          <label class="setting-row"><span>화면 전환 효과</span><input id="animationsToggle" type="checkbox" checked></label>
+          <button id="surrenderButton" class="menu-danger hidden" type="button">항복하기</button>
+          <button id="leaveRoomButton" class="menu-button hidden" type="button">대기실 나가기</button>
+          <button id="closeSettingsButton" class="menu-button" type="button">닫기</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <section id="setupScreen" class="screen active">
+        <div class="setup-layout">
+          <section class="intro-panel panel">
+            <p class="eyebrow">HIDDEN INFORMATION · THREE LANES</p>
+            <h1>한 수를 숨기고,<br>세 줄을 지배하라.</h1>
+            <p class="intro-copy">공용 덱에서 카드를 영입하고, 상대와 번갈아 비공개로 배치하세요. 전투를 시작할 순간을 읽고 세 개의 세로줄을 차지하세요.</p>
+            <div class="feature-row"><span>2인 온라인 대전</span><span>동시가 아닌 교대 배치</span><span>선착순 12점 승리</span></div>
+          </section>
+
+          <section class="join-panel panel">
+            <div class="panel-heading"><div><p class="eyebrow">PLAYER SETUP</p><h2>대전 시작</h2></div></div>
+            <label class="input-label" for="playerName">플레이어 이름</label>
+            <input id="playerName" class="text-input" maxlength="16" autocomplete="nickname" placeholder="이름을 입력하세요">
+            <button id="createRoomButton" class="primary-button full-button" type="button">새 대전 방 만들기</button>
+            <div class="separator"><span>또는</span></div>
+            <label class="input-label" for="roomCodeInput">초대 코드</label>
+            <div class="join-row">
+              <input id="roomCodeInput" class="text-input code-input" maxlength="6" autocomplete="off" placeholder="6자리 코드">
+              <button id="joinRoomButton" class="secondary-button" type="button">참가</button>
+            </div>
+            <p class="helper-text">친구가 만든 방의 6자리 코드를 입력하세요.</p>
+            <p id="setupError" class="error-text" role="status"></p>
+          </section>
+        </div>
+      </section>
+
+      <section id="lobbyScreen" class="screen hidden">
+        <section class="lobby-panel panel">
+          <div class="panel-heading">
+            <div><p class="eyebrow">MATCH LOBBY</p><h2>대기실</h2></div>
+            <span id="lobbyStatus" class="status-pill">상대 플레이어 대기 중</span>
+          </div>
+          <div class="invite-box">
+            <div><small>친구에게 공유할 방 코드</small><strong id="lobbyRoomCode">------</strong></div>
+            <button id="copyRoomCodeButton" class="secondary-button" type="button">코드 복사</button>
+          </div>
+          <div class="players-grid">
+            <div class="player-card"><span class="player-number">PLAYER 1</span><strong id="lobbyPlayerOne">-</strong><span id="lobbyPlayerOneState" class="player-state">방장</span></div>
+            <div class="player-card"><span class="player-number">PLAYER 2</span><strong id="lobbyPlayerTwo">상대 대기 중</strong><span id="lobbyPlayerTwoState" class="player-state">초대 코드를 공유하세요</span></div>
+          </div>
+          <p id="lobbyMessage" class="helper-text">두 플레이어가 입장하면 방장이 게임을 시작할 수 있습니다.</p>
+          <div class="lobby-actions">
+            <button id="startGameButton" class="primary-button" type="button" disabled>게임 시작</button>
+            <button id="exitLobbyButton" class="secondary-button" type="button">나가기</button>
+          </div>
+        </section>
+      </section>
+
+      <section id="gameScreen" class="screen hidden">
+        <div class="game-stack">
+          <section class="board-panel opponent-panel">
+            <div class="board-heading">
+              <strong id="opponentName">상대 플레이어</strong>
+              <div class="board-meta"><span id="opponentHandCount">손패 0장</span><span id="opponentScore" class="score-chip">0점</span></div>
+            </div>
+            <div id="opponentField" class="field-grid opponent-field" aria-label="상대 필드"></div>
+          </section>
+
+          <section class="turn-strip">
+            <div class="turn-number"><small>현재 진행</small><strong id="turnNumber">1번째 턴</strong></div>
+            <div class="timer-wrap"><strong id="actionTimer">01:00</strong><small id="phaseLabel">용병 선택</small></div>
+            <div id="activePlayerBadge" class="active-player-badge">상대 대기 중</div>
+            <div class="score-summary"><span>나 <b id="myScore">0점</b></span><span>상대 <b id="otherScore">0점</b></span></div>
+          </section>
+
+          <section class="board-panel own-panel">
+            <div class="board-heading"><strong>내 필드</strong><span id="fieldUsage" class="field-usage">0 / 6칸 사용</span></div>
+            <div id="myField" class="field-grid own-field" aria-label="내 필드"></div>
+          </section>
+
+          <section class="bottom-zone">
+            <div class="hand-panel panel">
+              <div class="hand-heading"><strong>내 손패</strong><span id="handCount">0장</span></div>
+              <div id="handCards" class="hand-cards"></div>
+              <p id="handHint" class="hand-hint">카드를 선택해 배치하세요.</p>
+            </div>
+            <div class="action-panel panel">
+              <div id="marketArea" class="action-block hidden">
+                <div class="action-heading"><strong>용병 시장</strong><span id="marketPickInfo">선택 순서 1 / 4</span></div>
+                <p id="marketHint" class="action-hint">영입할 카드 한 장을 선택하세요.</p>
+                <div id="marketCards" class="market-cards"></div>
+              </div>
+
+              <div id="placementArea" class="action-block hidden">
+                <div class="action-heading"><strong>카드 배치</strong><span id="placementTurnInfo">내 차례</span></div>
+                <p id="placementHint" class="action-hint">손패에서 유닛을 선택한 뒤 내 필드의 빈칸을 누르세요.</p>
+                <button id="passPlacementButton" class="secondary-button full-button" type="button">배치하지 않음</button>
+              </div>
+
+              <div id="decisionArea" class="action-block hidden">
+                <div class="action-heading"><strong>전투 여부 결정</strong><span>공격자 선택</span></div>
+                <p class="action-hint">누적된 필드를 공개하고 전투할지 결정하세요.</p>
+                <div class="button-pair"><button id="declareBattleButton" class="primary-button" type="button">전투 선언</button><button id="skipBattleButton" class="secondary-button" type="button">전투하지 않기</button></div>
+              </div>
+
+              <div id="spellArea" class="action-block hidden">
+                <div class="action-heading"><strong>마법 턴</strong><span id="spellTurnInfo">공격자부터 사용</span></div>
+                <p id="spellHint" class="action-hint">마법 카드를 선택하거나 사용을 마치려면 패스하세요.</p>
+                <div id="spellExtra" class="spell-extra"></div>
+                <button id="passSpellButton" class="secondary-button full-button" type="button">마법 사용하지 않음</button>
+              </div>
+
+              <div id="waitingArea" class="waiting-area hidden">
+                <span class="waiting-dot"></span><strong id="waitingText">상대의 선택을 기다리는 중</strong>
+                <small>상대의 행동이 끝나면 화면이 자동으로 갱신됩니다.</small>
+              </div>
+              <div id="gameNotice" class="game-notice" aria-live="polite"></div>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section id="resultScreen" class="screen hidden">
+        <section class="result-panel panel">
+          <p class="eyebrow">MATCH RESULT</p>
+          <div id="resultSymbol" class="result-symbol">★</div>
+          <h1 id="resultTitle">승리!</h1>
+          <p id="resultMessage" class="result-message">먼저 12점을 획득했습니다.</p>
+          <div class="result-score"><div><small>나</small><strong id="resultMyScore">0</strong></div><div><small>상대</small><strong id="resultOpponentScore">0</strong></div></div>
+          <button id="returnHomeButton" class="primary-button" type="button">타이틀로 돌아가기</button>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <div id="confirmModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-card panel">
+      <h2 id="modalTitle">확인</h2>
+      <p id="modalMessage"></p>
+      <div class="button-pair"><button id="modalCancelButton" class="secondary-button" type="button">취소</button><button id="modalConfirmButton" class="danger-button" type="button">확인</button></div>
+    </div>
+  </div>
+  <div id="toast" class="toast hidden" role="status"></div>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
