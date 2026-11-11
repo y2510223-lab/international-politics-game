@@ -165,10 +165,29 @@ function settings(open){$("settingsMenu").classList.toggle("hidden",!open);}
 function setupFirebase(){
   app=initializeApp(firebaseConfig);auth=getAuth(app);db=getDatabase(app);
   onAuthStateChanged(auth,user=>{
-    currentUser=user;$("connectionBadge").textContent=user?"온라인 연결":"연결 중";
-    $("connectionBadge").classList.toggle("online",!!user);
+    currentUser=user;
+    if(!user){
+      $("connectionBadge").textContent="로그인 중";
+      $("connectionBadge").classList.remove("online");
+      return;
+    }
+    $("connectionBadge").textContent="인증 완료 · DB 확인 중";
+    $("connectionBadge").classList.add("online");
   });
-  signInAnonymously(auth).catch(e=>{$("setupError").textContent="Firebase 연결 실패: "+e.message;});
+  onValue(ref(db,".info/connected"),snap=>{
+    const connected=snap.val()===true;
+    $("connectionBadge").textContent=connected?"온라인 연결":"서버 연결 끊김";
+    $("connectionBadge").classList.toggle("online",connected);
+  },error=>{
+    $("connectionBadge").textContent="DB 연결 오류";
+    $("connectionBadge").classList.remove("online");
+    setError("Firebase 데이터베이스 연결 오류: "+error.message);
+  });
+  signInAnonymously(auth).catch(e=>{
+    $("connectionBadge").textContent="로그인 실패";
+    $("connectionBadge").classList.remove("online");
+    setError("Firebase 익명 로그인 실패: "+e.message+" (Firebase Console에서 Anonymous 로그인이 켜져 있는지 확인하세요.)");
+  });
 }
 function path(code){return ROOM_ROOT+"/"+code;}
 function watchRoom(code,seat){
@@ -193,18 +212,51 @@ async function createRoom(){
   }catch(e){setError(e.message||"방 생성 실패");}finally{$("createRoomButton").disabled=false;}
 }
 async function joinRoom(){
-  if(!currentUser)return setError("온라인 연결을 기다려 주세요.");
+  if(!currentUser)return setError("온라인 인증이 완료되지 않았습니다. 상단 연결 상태를 확인해 주세요.");
   const code=$("roomCodeInput").value.trim().toUpperCase(),name=$("playerName").value.trim()||"플레이어 2";
-  if(!/^[A-Z0-9]{6}$/.test(code))return setError("6자리 방 코드를 입력해 주세요.");
+  if(!/^[A-Z0-9]{6}$/.test(code))return setError("초대 코드는 영문 대문자와 숫자 6자리여야 합니다.");
   setError("");$("joinRoomButton").disabled=true;
   try{
-    const tx=await runTransaction(ref(db,path(code)),current=>{
-      if(!current||current.status!=="lobby"||current.players?.p2)return;
-      const next=copy(current);next.players.p2=newPlayer(currentUser.uid,name);next.lastMessage=name+" 플레이어가 입장했습니다.";return next;
+    const targetRef=ref(db,path(code));
+    const initial=await get(targetRef);
+    if(!initial.exists())throw new Error("해당 초대 코드의 방을 찾을 수 없습니다. 방장에게 새 코드를 확인해 주세요.");
+    const current=initial.val();
+    // 같은 브라우저에서 새로고침하거나 재접속한 플레이어는 기존 좌석으로 복귀한다.
+    // p2를 우선 확인해 한 브라우저의 두 번째 탭으로 테스트한 경우도 다시 연결할 수 있다.
+    if(current.players?.p2?.uid===currentUser.uid){watchRoom(code,"p2");return;}
+    if(current.players?.p1?.uid===currentUser.uid){watchRoom(code,"p1");return;}
+    if(current.status!=="lobby")throw new Error("이 방은 이미 게임이 시작되었거나 종료되었습니다.");
+    if(current.players?.p2)throw new Error("이 방은 이미 두 명이 참가했습니다. 방장에게 새 방을 만들어 달라고 요청하세요.");
+
+    const tx=await runTransaction(targetRef,latest=>{
+      if(!latest||latest.status!=="lobby")return;
+      if(latest.players?.p2){
+        if(latest.players.p2.uid===currentUser.uid)return latest;
+        return;
+      }
+      const next=copy(latest);
+      next.players=next.players||{};
+      next.players.p2=newPlayer(currentUser.uid,name);
+      next.lastMessage=name+" 플레이어가 입장했습니다.";
+      return next;
     },{applyLocally:false});
-    if(!tx.committed)throw new Error("참가할 수 없는 방입니다. 방 코드와 인원을 확인하세요.");
-    watchRoom(code,"p2");
-  }catch(e){setError(e.message||"방 참가 실패");}finally{$("joinRoomButton").disabled=false;}
+
+    const joined=tx.snapshot?.val();
+    if(!tx.committed && joined?.players?.p2?.uid!==currentUser.uid && joined?.players?.p1?.uid!==currentUser.uid){
+      throw new Error("방 참가가 완료되지 않았습니다. 방이 가득 찼거나 상태가 바뀌었을 수 있습니다.");
+    }
+    const finalState=joined || (await get(targetRef)).val();
+    if(finalState?.players?.p2?.uid===currentUser.uid)watchRoom(code,"p2");
+    else if(finalState?.players?.p1?.uid===currentUser.uid)watchRoom(code,"p1");
+    else throw new Error("방 참가 확인에 실패했습니다. 다시 시도해 주세요.");
+  }catch(e){
+    const message=e?.code==="PERMISSION_DENIED"||e?.code==="permission-denied"
+      ? "Firebase 접근이 거부되었습니다. Realtime Database 규칙에서 /rooms/rps-card-duel 경로의 읽기·쓰기를 허용했는지 확인해야 합니다."
+      : e?.code==="NETWORK_ERROR"
+      ? "Firebase 서버에 연결할 수 없습니다. 인터넷 연결과 브라우저의 추적 방지 설정을 확인해 주세요."
+      : (e.message||"방 참가 실패");
+    setError(message);
+  }finally{$("joinRoomButton").disabled=false;}
 }
 function setError(msg){$("setupError").textContent=msg||"";}
 async function mutate(fn){
