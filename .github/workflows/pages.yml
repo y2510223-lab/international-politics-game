@@ -4,6 +4,7 @@ on:
     branches: [main]
     paths:
       - "sniper-duel/**"
+      - "rps-card-duel/**"
       - "index.html"
       - "styles.css"
       - ".github/workflows/pages.yml"
