@@ -45,7 +45,7 @@ function draw(state,n){
 }
 function other(seat){return OTHER[seat];}
 function startAction(state,seat){state.activeSeat=seat;state.actionStartedAt=Date.now();}
-function newPlayer(id,name){return {uid:id,name:name,hand:[],field:Array(6).fill(null),score:0};}
+function newPlayer(id,name){return {uid:id,name:name,hand:[],field:Array(6).fill(false),score:0};}
 function startPlacement(state){
   state.market=[];state.marketOrder=[];state.marketPickIndex=0;state.phase="placement";state.consecutivePasses=0;
   state.lastMessage="공격자부터 한 장씩 번갈아 배치하세요.";startAction(state,state.attackerSeat);
@@ -77,7 +77,7 @@ function beginSpells(state){
   state.phase="spells";state.consecutivePasses=0;state.lastMessage="공격자부터 마법을 사용할 수 있습니다.";startAction(state,state.attackerSeat);
 }
 function countLane(field,lane){return [field[lane],field[lane+3]].filter(Boolean).length;}
-function promote(field,lane){if(!field[lane]&&field[lane+3]){field[lane]=field[lane+3];field[lane+3]=null;}}
+function promote(field,lane){if(!field[lane]&&field[lane+3]){field[lane]=field[lane+3];field[lane+3]=false;}}
 function compare(a,b,aCount,bCount){
   const aWins=a.type==="duelist"&&bCount===1,bWins=b.type==="duelist"&&aCount===1;
   if(aWins&&bWins)return 0;if(aWins)return 1;if(bWins)return -1;
@@ -114,7 +114,7 @@ function resolveBattle(state){
   state.lastMessage=log.length?log.join(" / "):"전투 결과를 계산했습니다.";state.actionStartedAt=state.battleResultAt;
 }
 function finishBattle(state){
-  ["p1","p2"].forEach(s=>{const p=state.players[s];p.field.forEach(c=>{if(c)state.discard.push(c);});p.field=Array(6).fill(null);});
+  ["p1","p2"].forEach(s=>{const p=state.players[s];p.field.forEach(c=>{if(c)state.discard.push(c);});p.field=Array(6).fill(false);});
   if(state.pendingResult){state.status="finished";state.phase="finished";state.winnerSeat=state.pendingResult;state.endReason="score";state.lastMessage="12점을 먼저 달성했습니다.";return;}
   state.pendingResult=null;nextTurn(state);
 }
@@ -128,7 +128,7 @@ function applyTimeout(state,now){
   if(now-(state.actionStartedAt||now)<ACTION_SECONDS*1000)return false;
   if(state.phase==="market"){
     const seat=state.marketOrder[state.marketPickIndex],index=state.market.findIndex(Boolean);
-    if(seat&&index>=0){state.players[seat].hand.push(state.market[index]);state.market[index]=null;state.lastMessage="시간 초과: 첫 번째 카드를 자동 영입했습니다.";}
+    if(seat&&index>=0){state.players[seat].hand.push(state.market[index]);state.market[index]=false;state.lastMessage="시간 초과: 첫 번째 카드를 자동 영입했습니다.";}
     advanceMarket(state);return true;
   }
   if(state.phase==="placement"){
@@ -222,7 +222,7 @@ async function startGame(){
     await mutate(state=>{
       if(state.status!=="lobby"||state.hostUid!==currentUser.uid||!state.players.p2)return false;
       state.deck=makeDeck();state.discard=[];
-      ["p1","p2"].forEach(s=>{state.players[s].hand=draw(state,2);state.players[s].score=0;state.players[s].field=Array(6).fill(null);});
+      ["p1","p2"].forEach(s=>{state.players[s].hand=draw(state,2);state.players[s].score=0;state.players[s].field=Array(6).fill(false);});
       state.status="playing";state.turnNumber=1;beginTurn(state,"p1");state.lastMessage="게임 시작! 공격자부터 용병을 선택하세요.";
     });
   }catch(e){toast(e.message);}
@@ -231,7 +231,7 @@ async function selectMarket(index){
   try{
     await mutate(state=>{
       if(!myTurn(state,"market")||state.marketOrder[state.marketPickIndex]!==mySeat||!state.market[index])return false;
-      state.players[mySeat].hand.push(state.market[index]);state.market[index]=null;
+      state.players[mySeat].hand.push(state.market[index]);state.market[index]=false;
       state.lastMessage=state.players[mySeat].name+" 플레이어가 용병을 영입했습니다.";advanceMarket(state);
     });resetSelection();
   }catch(e){toast(e.message);}
@@ -285,7 +285,7 @@ async function destroyUnit(id,index){
       if(!myTurn(state,"spells"))return false;
       const spell=consumeSpell(state,id);if(!spell||spell.type!=="magicDestroy")return false;
       const enemy=state.players[other(mySeat)],target=enemy.field[index];if(!target)return false;
-      state.discard.push(target);enemy.field[index]=null;state.lastMessage="상대 유닛 카드 한 장을 파괴했습니다.";
+      state.discard.push(target);enemy.field[index]=false;state.lastMessage="상대 유닛 카드 한 장을 파괴했습니다.";
       state.consecutivePasses=0;startAction(state,mySeat);
     });resetSelection();
   }catch(e){toast(e.message);}
@@ -336,7 +336,7 @@ function fieldCard(card,back){
   const c=CARD[card.type];return '<div class="field-card"><span class="card-icon">'+c.icon+'</span><span class="card-name">'+c.name+'</span><span class="card-desc">'+c.desc+'</span><span class="card-tag">'+c.tag+'</span></div>';
 }
 function renderField(id,targetSeat,opponentView){
-  const box=$(id),field=room.players[targetSeat].field||Array(6).fill(null);
+  const box=$(id),field=room.players[targetSeat].field||Array(6).fill(false);
   const reveal=room.phase==="spells"||room.phase==="battleResult"||room.phase==="finished";
   const offsets=opponentView?[3,0]:[0,3];
   const destroyTarget=pendingMagic?.type==="magicDestroy"&&room.phase==="spells"&&room.activeSeat===mySeat&&targetSeat===other(mySeat);
