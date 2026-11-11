@@ -261,7 +261,6 @@ async function joinRoom(){
     const joined=tx.snapshot?.val();
     const finalState=joined || (await get(targetRef)).val();
     if(finalState?.players?.p2?.uid===currentUser.uid)watchRoom(code,"p2");
-    else if(finalState?.players?.p1?.uid===currentUser.uid)watchRoom(code,"p1");
     else if(finalState?.status!=="lobby")throw new Error("이 방은 이미 게임이 시작되었거나 종료되었습니다. 새 방을 만들어 주세요.");
     else if(finalState?.players?.p2)throw new Error("이 방은 이미 다른 플레이어가 참가했습니다. 방장에게 새 방을 만들어 달라고 요청하세요.");
     else if(!tx.committed)throw new Error("방 참가 트랜잭션이 완료되지 않았습니다. 인터넷 연결을 확인하고 다시 시도해 주세요.");
