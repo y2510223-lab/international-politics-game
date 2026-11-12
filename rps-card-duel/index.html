@@ -78,67 +78,95 @@
 
       <section id="gameScreen" class="screen hidden">
         <div class="game-stack">
-          <section class="board-panel opponent-panel">
-            <div class="board-heading">
-              <strong id="opponentName">상대 플레이어</strong>
-              <div class="board-meta"><span id="opponentHandCount">손패 0장</span><span id="opponentScore" class="score-chip">0점</span></div>
+          <header class="game-hud">
+            <div class="hud-opponent">
+              <div class="hud-avatar">상</div>
+              <div class="hud-player-copy"><strong id="opponentName">상대 플레이어</strong><small>손패 <b id="opponentHandCount">0장</b> · <b id="opponentScore">0점</b></small></div>
             </div>
-            <div id="opponentField" class="field-grid opponent-field" aria-label="상대 필드"></div>
-          </section>
-
-          <section class="turn-strip">
-            <div class="turn-number"><small>현재 진행</small><strong id="turnNumber">1번째 턴</strong></div>
-            <div class="timer-wrap"><strong id="actionTimer">01:00</strong><small id="phaseLabel">용병 선택</small></div>
-            <div id="activePlayerBadge" class="active-player-badge">상대 대기 중</div>
-            <div class="score-summary"><span>나 <b id="myScore">0점</b></span><span>상대 <b id="otherScore">0점</b></span></div>
-          </section>
-
-          <section class="board-panel own-panel">
-            <div class="board-heading"><strong>내 필드</strong><span id="fieldUsage" class="field-usage">0 / 6칸 사용</span></div>
-            <div id="myField" class="field-grid own-field" aria-label="내 필드"></div>
-          </section>
-
-          <section class="bottom-zone">
-            <div class="hand-panel panel">
-              <div class="hand-heading"><strong>내 손패</strong><span id="handCount">0장</span></div>
-              <div id="handCards" class="hand-cards"></div>
-              <p id="handHint" class="hand-hint">카드를 선택해 배치하세요.</p>
+            <div class="hud-turn">
+              <strong id="turnNumber">1번째 턴</strong>
+              <span id="attackerBadge">공격자: 나</span>
             </div>
-            <div class="action-panel panel">
-              <div id="marketArea" class="action-block hidden">
-                <div class="action-heading"><strong>용병 시장</strong><span id="marketPickInfo">선택 순서 1 / 4</span></div>
-                <p id="marketHint" class="action-hint">영입할 카드 한 장을 선택하세요.</p>
-                <div id="marketCards" class="market-cards"></div>
-              </div>
-
-              <div id="placementArea" class="action-block hidden">
-                <div class="action-heading"><strong>카드 배치</strong><span id="placementTurnInfo">내 차례</span></div>
-                <p id="placementHint" class="action-hint">손패에서 유닛을 선택한 뒤 내 필드의 빈칸을 누르세요.</p>
-                <button id="passPlacementButton" class="secondary-button full-button" type="button">배치하지 않음</button>
-              </div>
-
-              <div id="decisionArea" class="action-block hidden">
-                <div class="action-heading"><strong>전투 여부 결정</strong><span>공격자 선택</span></div>
-                <p class="action-hint">누적된 필드를 공개하고 전투할지 결정하세요.</p>
-                <div class="button-pair"><button id="declareBattleButton" class="primary-button" type="button">전투 선언</button><button id="skipBattleButton" class="secondary-button" type="button">전투하지 않기</button></div>
-              </div>
-
-              <div id="spellArea" class="action-block hidden">
-                <div class="action-heading"><strong>마법 턴</strong><span id="spellTurnInfo">공격자부터 사용</span></div>
-                <p id="spellHint" class="action-hint">마법 카드를 선택하거나 사용을 마치려면 패스하세요.</p>
-                <div id="spellExtra" class="spell-extra"></div>
-                <button id="passSpellButton" class="secondary-button full-button" type="button">마법 사용하지 않음</button>
-              </div>
-
-              <div id="waitingArea" class="waiting-area hidden">
-                <span class="waiting-dot"></span><strong id="waitingText">상대의 선택을 기다리는 중</strong>
-                <small>상대의 행동이 끝나면 화면이 자동으로 갱신됩니다.</small>
-              </div>
-              <div id="gameNotice" class="game-notice" aria-live="polite"></div>
+            <div class="hud-current">
+              <strong id="activePlayerBadge">상대 대기 중</strong>
+              <small id="phaseLabel">용병 선택</small>
             </div>
-          </section>
+            <div class="hud-timer">
+              <strong id="actionTimer">01:00</strong>
+              <small>남은 시간</small>
+            </div>
+          </header>
+
+          <div class="game-layout">
+            <div class="game-main">
+              <section class="board-panel opponent-panel">
+                <div class="board-heading"><strong>상대 필드</strong><span id="opponentFieldUsage" class="board-subtitle">0 / 6칸 사용</span></div>
+                <div id="opponentField" class="field-grid opponent-field" aria-label="상대 필드"></div>
+              </section>
+
+              <section class="board-panel own-panel">
+                <div class="board-heading"><strong>내 필드</strong><span id="fieldUsage" class="field-usage">0 / 6칸 사용</span></div>
+                <div id="myField" class="field-grid own-field" aria-label="내 필드"></div>
+              </section>
+
+              <section class="bottom-zone">
+                <div class="hand-panel panel">
+                  <div class="hand-heading"><strong>내 손패</strong><span id="handCount">0장</span></div>
+                  <div class="hand-content">
+                    <div id="handCards" class="hand-cards"></div>
+                    <button id="openMarketButton" class="market-reopen-button hidden" type="button">용병 시장 다시 열기</button>
+                  </div>
+                  <p id="handHint" class="hand-hint">카드를 선택해 배치하세요.</p>
+                </div>
+                <div class="action-panel panel">
+                  <div id="placementArea" class="action-block hidden">
+                    <div class="action-heading"><strong>카드 배치</strong><span id="placementTurnInfo">내 차례</span></div>
+                    <p id="placementHint" class="action-hint">손패에서 유닛을 선택한 뒤 내 필드의 빈칸을 누르세요.</p>
+                    <button id="passPlacementButton" class="secondary-button full-button" type="button">배치하지 않음</button>
+                  </div>
+
+                  <div id="decisionArea" class="action-block hidden">
+                    <div class="action-heading"><strong>전투 여부 결정</strong><span>공격자 선택</span></div>
+                    <p class="action-hint">누적된 필드를 공개하고 전투할지 결정하세요.</p>
+                    <div class="button-pair"><button id="declareBattleButton" class="primary-button" type="button">전투 선언</button><button id="skipBattleButton" class="secondary-button" type="button">전투하지 않기</button></div>
+                  </div>
+
+                  <div id="spellArea" class="action-block hidden">
+                    <div class="action-heading"><strong>마법 턴</strong><span id="spellTurnInfo">공격자부터 사용</span></div>
+                    <p id="spellHint" class="action-hint">마법 카드를 선택하거나 사용을 마치려면 패스하세요.</p>
+                    <div id="spellExtra" class="spell-extra"></div>
+                    <button id="passSpellButton" class="secondary-button full-button" type="button">마법 사용하지 않음</button>
+                  </div>
+
+                  <div id="waitingArea" class="waiting-area hidden">
+                    <span class="waiting-dot"></span><strong id="waitingText">상대의 선택을 기다리는 중</strong>
+                    <small>상대의 행동이 끝나면 화면이 자동으로 갱신됩니다.</small>
+                  </div>
+                  <div id="gameNotice" class="game-notice" aria-live="polite"></div>
+                </div>
+              </section>
+            </div>
+
+            <aside class="market-history-panel panel">
+              <div class="history-heading"><div><p class="eyebrow">PUBLIC PICKS</p><strong>용병시장 기록</strong></div><button id="historyLatestButton" class="history-filter active" type="button">최근 순</button></div>
+              <div id="marketHistory" class="market-history-list"><p class="history-empty">아직 영입 기록이 없습니다.</p></div>
+              <div class="history-footnote">시장에서 공개적으로 영입한 카드만 표시됩니다.</div>
+            </aside>
+          </div>
         </div>
       </section>
+
+      <div id="marketOverlay" class="market-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="marketOverlayTitle">
+        <div class="market-overlay-panel">
+          <div class="market-overlay-heading">
+            <div><p class="eyebrow">MERCENARY RECRUITMENT</p><h2 id="marketOverlayTitle">용병 시장</h2><p id="marketHint">이번 턴에 영입할 카드를 선택하세요.</p></div>
+            <button id="closeMarketButton" class="market-close-button" type="button" aria-label="시장 접기">필드 보기 ×</button>
+          </div>
+          <div class="market-overlay-status"><strong id="marketPickInfo">선택 순서 1 / 4</strong><span id="marketCurrentPicker">공격자 차례</span></div>
+          <div id="marketCards" class="market-cards"></div>
+          <div class="market-overlay-footer"><span>선택 순서: 공격자 → 상대 → 상대 → 공격자</span><span>시장을 접어도 선택 시간은 계속 흐릅니다.</span></div>
+        </div>
+      </div>
 
       <section id="resultScreen" class="screen hidden">
         <section class="result-panel panel">
