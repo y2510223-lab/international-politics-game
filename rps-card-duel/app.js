@@ -23,6 +23,7 @@ const UNITS = ["fist","scissors","paper","specialPaper","specialFist","specialSc
 const MAGICS = ["magicSwap","magicDestroy","magicReinforce"];
 let app,auth,db,currentUser=null,roomRef=null,roomCode="",mySeat="",room=null,offRoom=null,timer=null,toastTimer=null;
 let selectedCard=null,pendingMagic=null,pendingUnit=null,pendingPlacements=[],modalAction=null;
+let marketOverlayOpen=false,marketOverlayTurn=null;
 
 function uid(){return crypto.randomUUID();}
 function copy(value){return JSON.parse(JSON.stringify(value));}
@@ -86,32 +87,141 @@ function compare(a,b,aCount,bCount){
   if((x==="fist"&&y==="scissors")||(x==="scissors"&&y==="paper")||(x==="paper"&&y==="fist"))return 1;
   return -1;
 }
-function resolveLane(state,lane,log){
-  const af=state.players.p1.field,bf=state.players.p2.field;promote(af,lane);promote(bf,lane);
-  for(let i=0;i<3;i++){
-    promote(af,lane);promote(bf,lane);
-    const a=af[lane],b=bf[lane];if(!a||!b)break;
-    const result=compare(a,b,countLane(af,lane),countLane(bf,lane));
-    if(result===0){
-      if(a.type==="specialPaper")state.players.p1.score++;
-      if(b.type==="specialPaper")state.players.p2.score++;
-      log.push("무승부");break;
+function addBattleEvent(events,event,durationMs){
+  events.push({...event,durationMs});
+}
+function buildBattleEvents(state){
+  const sim=normalizeGameState(copy(state));
+  const events=[];
+  for(let lane=0;lane<3;lane++){
+    for(const seat of ["p1","p2"]){
+      const field=sim.players[seat].field;
+      if(!field[lane]&&field[lane+3]){
+        const card=copy(field[lane+3]);
+        addBattleEvent(events,{type:"advance",seat,lane,fromIndex:lane+3,toIndex:lane,cardId:card.id,card,text:sim.players[seat].name+"의 후열 카드가 전열로 이동합니다."},520);
+        field[lane]=field[lane+3];field[lane+3]=false;
+      }
     }
-    if(result>0){state.discard.push(b);bf[lane]=bf[lane+3]||false;bf[lane+3]=false;log.push("내 카드 승리");}
-    else{state.discard.push(a);af[lane]=af[lane+3]||false;af[lane+3]=false;log.push("상대 카드 승리");}
+    const aField=sim.players.p1.field,bField=sim.players.p2.field;
+    for(let round=0;round<3;round++){
+      const a=aField[lane],b=bField[lane];
+      if(!a||!b)break;
+      const result=compare(a,b,countLane(aField,lane),countLane(bField,lane));
+      if(result===0){
+        addBattleEvent(events,{type:"tie",lane,seatA:"p1",seatB:"p2",cardA:copy(a),cardB:copy(b),text:"양쪽 카드가 무승부입니다. 이 세로줄의 대결을 중지합니다."},650);
+        if(a.type==="specialPaper"){
+          addBattleEvent(events,{type:"bonusScore",seat:"p1",lane,points:1,text:"나의 특수 보가 무승부 보너스 1점을 획득합니다."},620);
+          sim.players.p1.score+=1;
+        }
+        if(b.type==="specialPaper"){
+          addBattleEvent(events,{type:"bonusScore",seat:"p2",lane,points:1,text:"상대의 특수 보가 무승부 보너스 1점을 획득합니다."},620);
+          sim.players.p2.score+=1;
+        }
+        break;
+      }
+      const winnerSeat=result>0?"p1":"p2";
+      const loserSeat=other(winnerSeat);
+      const winnerCard=result>0?a:b;
+      const loserCard=result>0?b:a;
+      const loserField=sim.players[loserSeat].field;
+      addBattleEvent(events,{
+        type:"attack",lane,attackerSeat:winnerSeat,attackerCardId:winnerCard.id,
+        targetSeat:loserSeat,targetCardId:loserCard.id,
+        text:sim.players[winnerSeat].name+"의 "+CARD[winnerCard.type].name+"이(가) 유리한 상성으로 공격합니다."
+      },560);
+      addBattleEvent(events,{
+        type:"destroy",lane,seat:loserSeat,index:lane,cardId:loserCard.id,card:copy(loserCard),
+        text:sim.players[loserSeat].name+"의 "+CARD[loserCard.type].name+" 카드가 파괴됩니다."
+      },540);
+      sim.discard.push(loserCard);
+      loserField[lane]=loserField[lane+3]||false;
+      loserField[lane+3]=false;
+      if(loserField[lane]){
+        const promoted=copy(loserField[lane]);
+        addBattleEvent(events,{
+          type:"advance",seat:loserSeat,lane,fromIndex:lane+3,toIndex:lane,
+          cardId:promoted.id,card:promoted,
+          text:sim.players[loserSeat].name+"의 후열 카드가 전열로 전진합니다."
+        },520);
+      }
+    }
+    const aCount=countLane(aField,lane),bCount=countLane(bField,lane);
+    if(aCount===bCount)continue;
+    const winnerSeat=aCount>bCount?"p1":"p2";
+    const loserSeat=other(winnerSeat);
+    const winnerField=sim.players[winnerSeat].field,loserField=sim.players[loserSeat].field;
+    const shield=[loserField[lane],loserField[lane+3]].some(card=>card&&card.type==="specialScissors");
+    if(shield){
+      addBattleEvent(events,{type:"blocked",lane,seat:winnerSeat,text:sim.players[loserSeat].name+"의 특수 가위가 이 세로줄의 점수 획득을 막습니다."},650);
+      continue;
+    }
+    const doubled=[winnerField[lane],winnerField[lane+3]].some(card=>card&&card.type==="specialFist");
+    const points=doubled?2:1;
+    addBattleEvent(events,{type:"score",lane,seat:winnerSeat,points,text:sim.players[winnerSeat].name+" 플레이어가 "+["왼쪽","가운데","오른쪽"][lane]+" 줄에서 "+points+"점을 획득합니다."},760);
+    sim.players[winnerSeat].score+=points;
   }
-  const ac=countLane(af,lane),bc=countLane(bf,lane);if(ac===bc)return;
-  const winner=ac>bc?"p1":"p2",loser=other(winner),wf=state.players[winner].field,lf=state.players[loser].field;
-  const shield=[lf[lane],lf[lane+3]].some(c=>c&&c.type==="specialScissors");
-  if(shield){log.push("특수 가위로 점수 차단");return;}
-  const doubled=[wf[lane],wf[lane+3]].some(c=>c&&c.type==="specialFist");
-  state.players[winner].score+=doubled?2:1;log.push(doubled?"줄 점수 2점":"줄 점수 1점");
+  if(events.length===0){
+    addBattleEvent(events,{type:"empty",text:"대결할 카드가 없어 전투를 마무리합니다."},650);
+  }
+  return events;
+}
+function applyBattleEvent(state,event){
+  if(event.type==="destroy"){
+    const field=state.players[event.seat].field;
+    const card=field[event.index];
+    if(card&&card.id===event.cardId){
+      event.card=copy(card);
+      state.discard.push(card);
+      field[event.index]=false;
+    }
+  }else if(event.type==="advance"){
+    const field=state.players[event.seat].field;
+    const card=field[event.fromIndex];
+    if(card&&card.id===event.cardId&&!field[event.toIndex]){
+      field[event.toIndex]=card;
+      field[event.fromIndex]=false;
+    }
+  }else if(event.type==="score"||event.type==="bonusScore"){
+    state.players[event.seat].score+=event.points;
+  }
+}
+function showBattleEvent(state,index,now){
+  const event=state.battleEvents[index];
+  if(!event)return false;
+  state.battleEventIndex=index;
+  state.battleEvent=copy(event);
+  state.battleEventStartedAt=now;
+  applyBattleEvent(state,state.battleEvent);
+  state.lastMessage=event.text||"전투가 진행 중입니다.";
+  return true;
+}
+function finishBattleAnimation(state,now){
+  state.phase="battleResult";
+  state.battleResultAt=now;
+  state.pendingResult=state.players.p1.score>=12?"p1":state.players.p2.score>=12?"p2":null;
+  state.lastMessage="전투가 종료되었습니다. 점수 결과를 확인하세요.";
+  state.actionStartedAt=now;
+  delete state.battleEvent;
+}
+function progressBattleAnimation(state,now){
+  if(state.phase!=="battleAnimation")return false;
+  const event=state.battleEvent;
+  const duration=event?.durationMs||600;
+  if(now-(state.battleEventStartedAt||now)<duration)return false;
+  const nextIndex=(state.battleEventIndex||0)+1;
+  if(nextIndex>=state.battleEvents.length){
+    finishBattleAnimation(state,now);
+    return true;
+  }
+  return showBattleEvent(state,nextIndex,now);
 }
 function resolveBattle(state){
-  const log=[];for(let lane=0;lane<3;lane++)resolveLane(state,lane,log);
-  state.phase="battleResult";state.consecutivePasses=0;state.battleResultAt=Date.now();
-  state.pendingResult=state.players.p1.score>=12?"p1":state.players.p2.score>=12?"p2":null;
-  state.lastMessage=log.length?log.join(" / "):"전투 결과를 계산했습니다.";state.actionStartedAt=state.battleResultAt;
+  state.battleEvents=buildBattleEvents(state);
+  state.phase="battleAnimation";
+  state.consecutivePasses=0;
+  state.battleEventIndex=0;
+  state.battleStartedAt=Date.now();
+  showBattleEvent(state,0,state.battleStartedAt);
 }
 function finishBattle(state){
   ["p1","p2"].forEach(s=>{const p=state.players[s];p.field.forEach(c=>{if(c)state.discard.push(c);});p.field=Array(6).fill(false);});
@@ -293,6 +403,8 @@ function normalizeGameState(state){
   state.discard=arrayValue(state.discard);
   state.market=arrayValue(state.market,true);
   state.marketOrder=arrayValue(state.marketOrder);
+  state.marketHistory=arrayValue(state.marketHistory);
+  state.battleEvents=arrayValue(state.battleEvents);
   state.players=state.players||{};
   for(const seat of ["p1","p2"]){
     const player=state.players[seat];
