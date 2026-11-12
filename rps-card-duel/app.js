@@ -328,8 +328,10 @@ function watchRoom(code,seat){
   // without mistaking a second tab on the same Firebase anonymous UID as the same seat.
   sessionStorage.setItem("rps-card-duel-seat:"+code,JSON.stringify({seat,uid:currentUser?.uid||""}));
   offRoom=onValue(roomRef,snap=>{
-    room=snap.val();
-    if(!room){toast("방이 삭제되었거나 존재하지 않습니다.");home();return;}
+    const value=snap.val();
+    if(!value){room=null;toast("방이 삭제되었거나 존재하지 않습니다.");home();return;}
+    // RTDB may return sparse list values as objects; normalize before UI reads.
+    room=normalizeGameState(value);
     render();
   },err=>toast("실시간 연결 오류: "+err.message));
   resetSelection();settings(false);
@@ -474,13 +476,23 @@ async function selectMarket(index){
   }catch(e){toast(e.message);}
 }
 async function placeUnit(cardId,index){
+  if(!cardId){toast("먼저 손패에서 배치할 유닛 카드를 선택하세요.");return;}
+  if(!Number.isInteger(index)||index<0||index>5){toast("올바른 필드 칸을 선택하세요.");return;}
   try{
     await mutate(state=>{
-      if(!myTurn(state,"placement")||state.players[mySeat].field[index])return false;
-      const p=state.players[mySeat],ci=p.hand.findIndex(c=>c.id===cardId&&UNITS.includes(c.type));if(ci<0)return false;
-      const card=p.hand.splice(ci,1)[0];p.field[index]=card;state.consecutivePasses=0;
-      state.lastMessage=p.name+" 플레이어가 유닛을 배치했습니다.";startAction(state,other(mySeat));
-    });resetSelection();
+      if(!myTurn(state,"placement"))return false;
+      const p=state.players?.[mySeat];
+      if(!p)return false;
+      if(p.field[index])return false;
+      const ci=p.hand.findIndex(card=>card.id===cardId&&UNITS.includes(card.type));
+      if(ci<0)return false;
+      const card=p.hand.splice(ci,1)[0];
+      p.field[index]=card;
+      state.consecutivePasses=0;
+      state.lastMessage=p.name+" 플레이어가 "+CARD[card.type].name+" 카드를 배치했습니다.";
+      startAction(state,other(mySeat));
+    });
+    resetSelection();
   }catch(e){toast(e.message);}
 }
 async function passPlacement(){
@@ -577,7 +589,9 @@ function renderField(id,targetSeat,opponentView){
   const reveal=room.phase==="spells"||room.phase==="battleAnimation"||room.phase==="battleResult"||room.phase==="finished";
   const offsets=opponentView?[3,0]:[0,3];
   const destroyTarget=pendingMagic?.type==="magicDestroy"&&room.phase==="spells"&&room.activeSeat===mySeat&&targetSeat===other(mySeat);
-  const canPlace=room.phase==="placement"&&room.activeSeat===mySeat&&selectedCard&&!opponentView;
+  // Keep this player's empty field slots clickable during their placement turn.
+  // The click handler can then ask for a hand-card selection instead of silently disabling the board.
+  const canPlace=room.phase==="placement"&&room.activeSeat===mySeat&&!opponentView;
   const canReinforce=room.phase==="spells"&&room.activeSeat===mySeat&&pendingMagic?.type==="magicReinforce"&&pendingUnit&&!opponentView;
   const event=room.battleEvent;
   const seat=targetSeat;
@@ -623,7 +637,21 @@ function renderHand(){
     return '<button type="button" class="hand-card '+(selected?"selected":"")+'" style="--fan-angle:'+angle+'deg;--fan-lift:'+lift+'px;z-index:'+z+'" data-hand-id="'+card.id+'" '+(enabled?"":"disabled")+'><span class="card-icon">'+c.icon+'</span><span class="card-name">'+c.name+'</span><span class="card-desc">'+c.desc+'</span><span class="card-tag">'+c.tag+'</span></button>';
   }).join("");
   $("handHint").textContent=pendingMagic?.type==="magicReinforce"?(pendingUnit?"내 필드의 빈칸을 선택하세요.":"추가 배치 "+pendingPlacements.length+"장 · 유닛 선택"):(room.phase==="placement"?"유닛 선택 후 내 필드의 빈칸을 누르세요.":room.phase==="spells"?"마법카드를 선택해 효과를 사용하세요.":"현재 단계에서는 손패를 사용할 수 없습니다.");
-  $("handCards").querySelectorAll("[data-hand-id]").forEach(b=>b.addEventListener("click",()=>handleHand(b.dataset.handId)));
+  $("handCards").querySelectorAll("[data-hand-id]").forEach(button=>{
+    const card=hand.find(item=>item.id===button.dataset.handId);
+    if(card&&UNITS.includes(card.type)&&room.phase==="placement"&&active){
+      button.draggable=true;
+      button.addEventListener("dragstart",event=>{
+        selectedCard=card.id;
+        event.dataTransfer.effectAllowed="move";
+        event.dataTransfer.setData("text/plain",card.id);
+        button.classList.add("dragging");
+        $("handHint").textContent="카드를 놓을 필드 칸으로 드래그하세요.";
+      });
+      button.addEventListener("dragend",()=>button.classList.remove("dragging"));
+    }
+    button.addEventListener("click",()=>handleHand(button.dataset.handId));
+  });
 }
 function renderMarket(){
   const cards=room.market||[];
@@ -742,7 +770,18 @@ function render(){
   }else{
     marketOverlayOpen=false;marketOverlayTurn=null;setMarketOverlay(false);
   }
-  ["opponentField","myField"].forEach(id=>$(id).querySelectorAll("[data-field-index]").forEach(b=>b.addEventListener("click",()=>handleField(b))));
+  ["opponentField","myField"].forEach(id=>$(id).querySelectorAll("[data-field-index]").forEach(button=>{
+    button.addEventListener("click",()=>handleField(button));
+    if(id==="myField"&&room.phase==="placement"&&room.activeSeat===mySeat&&!room.players[mySeat].field[Number(button.dataset.fieldIndex)]){
+      button.addEventListener("dragover",event=>{event.preventDefault();event.dataTransfer.dropEffect="move";button.classList.add("drop-target");});
+      button.addEventListener("dragleave",()=>button.classList.remove("drop-target"));
+      button.addEventListener("drop",event=>{
+        event.preventDefault();button.classList.remove("drop-target");
+        const cardId=event.dataTransfer.getData("text/plain")||selectedCard;
+        if(cardId)placeUnit(cardId,Number(button.dataset.fieldIndex));
+      });
+    }
+  }));
   updateTimer();
 }
 async function handleHand(id){
@@ -756,7 +795,14 @@ async function handleHand(id){
 }
 async function handleField(button){
   const index=Number(button.dataset.fieldIndex),side=button.dataset.fieldSide;
-  if(room.phase==="placement"&&side==="mine"&&selectedCard){await placeUnit(selectedCard,index);return;}
+  if(room.phase==="placement"&&side==="mine"){
+    if(!selectedCard){
+      $("handHint").textContent="먼저 손패에서 유닛 카드를 선택한 뒤 이 빈칸을 눌러주세요.";
+      toast("손패에서 유닛 카드를 먼저 선택하세요.");
+      return;
+    }
+    await placeUnit(selectedCard,index);return;
+  }
   if(room.phase==="spells"&&pendingMagic?.type==="magicDestroy"&&side==="opponent"){await destroyUnit(pendingMagic.id,index);return;}
   if(room.phase==="spells"&&pendingMagic?.type==="magicReinforce"&&side==="mine"&&pendingUnit&&!room.players[mySeat].field[index]){
     if(pendingPlacements.some(p=>p.index===index))return;
