@@ -764,12 +764,18 @@ async function handleField(button){
   }
 }
 function updateTimer(){
-  const timerEl=$("actionTimer");
-  if(!room||room.phase==="battleAnimation"||room.phase==="battleResult"){timerEl.textContent="—";timerEl.className="";return;}
+  const timerEl=$("actionTimer"),marketTimer=$("marketActionTimer");
+  if(!room||room.phase==="battleAnimation"||room.phase==="battleResult"){
+    timerEl.textContent="—";timerEl.className="";
+    if(marketTimer){marketTimer.textContent="—";marketTimer.className="market-action-timer";}
+    return;
+  }
   const elapsed=Math.max(0,Date.now()-(room.actionStartedAt||Date.now()));
   const remain=Math.max(0,ACTION_SECONDS-Math.floor(elapsed/1000));
-  timerEl.textContent="00:"+String(remain).padStart(2,"0");
+  const label="00:"+String(remain).padStart(2,"0");
+  timerEl.textContent=label;
   timerEl.className=remain<=5?"danger":remain<=10?"warning":"";
+  if(marketTimer){marketTimer.textContent=label;marketTimer.className="market-action-timer "+(remain<=5?"danger":remain<=10?"warning":"");}
 }
 function timerLoop(){
   clearInterval(timer);timer=setInterval(()=>{
