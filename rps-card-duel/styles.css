@@ -254,3 +254,7 @@ button:disabled{opacity:.4;cursor:not-allowed}
 @media(max-width:760px){
   .hand-card{transform:rotate(var(--fan-angle,0deg)) translateY(var(--fan-lift,0px))}
 }
+
+.market-action-timer{font-size:18px;font-weight:900;font-variant-numeric:tabular-nums;color:#f3cc75;background:#211912;border:1px solid #ac8652;border-radius:8px;padding:6px 12px;min-width:84px;text-align:center}
+.market-action-timer.warning{color:#ffb76e}.market-action-timer.danger{color:#ff7972}
+.hud-player-copy b.score-pulse{animation:scorePulse .7s ease-out}
