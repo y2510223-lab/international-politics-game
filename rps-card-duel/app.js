@@ -730,7 +730,7 @@ function render(){
   $("myScore").classList.toggle("score-pulse",!!scoringEvent&&scoringEvent.seat===mySeat);
   $("opponentScore").classList.toggle("score-pulse",!!scoringEvent&&scoringEvent.seat===other(mySeat));
   $("attackerBadge").textContent="공격자: "+(room.attackerSeat===mySeat?"나":enemy.name);
-  $("activePlayerBadge").textContent=room.activeSeat===mySeat?"내 차례":enemy.name+" 차례";
+  $("activePlayerBadge").textContent=room.phase==="battleAnimation"?"전투 중":room.phase==="battleResult"?"전투 결과":(room.activeSeat===mySeat?"내 차례":enemy.name+" 차례");
   $("phaseLabel").textContent=({market:"용병 선택",placement:"카드 배치",decision:"전투 결정",spells:"마법 사용",battleAnimation:"전투 진행 중",battleResult:"전투 결과"})[room.phase]||"진행 중";
   $("fieldUsage").textContent=me.field.filter(Boolean).length+" / 6칸 사용";
   $("opponentFieldUsage").textContent=enemy.field.filter(Boolean).length+" / 6칸 사용";
