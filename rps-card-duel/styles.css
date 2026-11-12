@@ -234,3 +234,23 @@ button:disabled{opacity:.4;cursor:not-allowed}
 @media(prefers-reduced-motion:reduce){
  .field-card.attack-mine,.field-card.attack-opponent,.field-card.target-hit,.field-card.destroying,.field-card.advancing,.field-card.tie-flash,.score-chip.score-pulse{animation-duration:.01ms!important}
 }
+
+/* Hand card fan rotation and shared score emphasis */
+.hand-card{transform:rotate(var(--fan-angle,0deg)) translateY(var(--fan-lift,0px))}
+.hand-card:hover:not(:disabled),.hand-card:focus-visible{transform:translateY(-17px) rotate(0deg) scale(1.06)!important}
+.my-score{font-size:11px;font-weight:800;color:#f2d18d;background:#53422e;border:1px solid #9d7b4b;border-radius:99px;padding:4px 9px}
+.my-score.score-pulse,.score-chip.score-pulse{animation:scorePulse .7s ease-out}
+.market-card-icon{font-size:clamp(30px,4vw,54px);line-height:1.2;color:#765a36}
+.market-card em{font-style:normal;font-size:10px;font-weight:800;color:#4b3925;background:#cbb48f;border-radius:99px;padding:5px 13px;margin-top:5px}
+.market-card.taken{display:flex;align-items:center;justify-content:center;background:linear-gradient(145deg,#b8a88f,#8e7a60);color:#433323;opacity:.8}
+.market-card.taken strong{font-size:13px}
+.field-slot.destroying-slot{border-color:#d09c65;background:#634631}
+.game-stack{position:relative}
+.game-stack:after{content:"";position:absolute;inset:5px;pointer-events:none;z-index:0;opacity:.13;border-radius:13px;background:
+  radial-gradient(circle at 5% 8%,transparent 0 19px,#5a3c2288 20px 21px,transparent 22px),
+  radial-gradient(circle at 94% 88%,transparent 0 42px,#5a3c2288 43px 44px,transparent 45px),
+  repeating-linear-gradient(28deg,transparent 0 32px,#795c3d22 33px,transparent 34px 65px)}
+.game-hud,.game-layout{position:relative;z-index:1}
+@media(max-width:760px){
+  .hand-card{transform:rotate(var(--fan-angle,0deg)) translateY(var(--fan-lift,0px))}
+}
