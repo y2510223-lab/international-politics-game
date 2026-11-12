@@ -636,21 +636,10 @@ function renderHand(){
     const z=index+1;
     return '<button type="button" class="hand-card '+(selected?"selected":"")+'" style="--fan-angle:'+angle+'deg;--fan-lift:'+lift+'px;z-index:'+z+'" data-hand-id="'+card.id+'" '+(enabled?"":"disabled")+'><span class="card-icon">'+c.icon+'</span><span class="card-name">'+c.name+'</span><span class="card-desc">'+c.desc+'</span><span class="card-tag">'+c.tag+'</span></button>';
   }).join("");
-  $("handHint").textContent=pendingMagic?.type==="magicReinforce"?(pendingUnit?"내 필드의 빈칸을 선택하세요.":"추가 배치 "+pendingPlacements.length+"장 · 유닛 선택"):(room.phase==="placement"?"유닛 선택 후 내 필드의 빈칸을 누르세요.":room.phase==="spells"?"마법카드를 선택해 효과를 사용하세요.":"현재 단계에서는 손패를 사용할 수 없습니다.");
+  $("handHint").textContent=pendingMagic?.type==="magicReinforce"?(pendingUnit?"내 필드의 빈칸을 선택하세요.":"추가 배치 "+pendingPlacements.length+"장 · 유닛 선택"):(room.phase==="placement"&&active?(selectedCard?"선택한 카드를 내 필드의 빈칸에 놓으세요.":"유닛 카드를 선택한 뒤 빈 필드를 클릭하거나 드래그하세요."):room.phase==="placement"?"상대 플레이어의 배치 차례입니다.":room.phase==="spells"?"마법카드를 선택해 효과를 사용하세요.":"현재 단계에서는 손패를 사용할 수 없습니다.");
   $("handCards").querySelectorAll("[data-hand-id]").forEach(button=>{
     const card=hand.find(item=>item.id===button.dataset.handId);
-    if(card&&UNITS.includes(card.type)&&room.phase==="placement"&&active){
-      button.draggable=true;
-      button.addEventListener("dragstart",event=>{
-        selectedCard=card.id;
-        event.dataTransfer.effectAllowed="move";
-        event.dataTransfer.setData("text/plain",card.id);
-        button.classList.add("dragging");
-        $("handHint").textContent="카드를 놓을 필드 칸으로 드래그하세요.";
-      });
-      button.addEventListener("dragend",()=>button.classList.remove("dragging"));
-    }
-    button.addEventListener("click",()=>handleHand(button.dataset.handId));
+    if(card&&UNITS.includes(card.type)&&room.phase==="placement"&&active)button.draggable=true;
   });
 }
 function renderMarket(){
@@ -770,18 +759,8 @@ function render(){
   }else{
     marketOverlayOpen=false;marketOverlayTurn=null;setMarketOverlay(false);
   }
-  ["opponentField","myField"].forEach(id=>$(id).querySelectorAll("[data-field-index]").forEach(button=>{
-    button.addEventListener("click",()=>handleField(button));
-    if(id==="myField"&&room.phase==="placement"&&room.activeSeat===mySeat&&!room.players[mySeat].field[Number(button.dataset.fieldIndex)]){
-      button.addEventListener("dragover",event=>{event.preventDefault();event.dataTransfer.dropEffect="move";button.classList.add("drop-target");});
-      button.addEventListener("dragleave",()=>button.classList.remove("drop-target"));
-      button.addEventListener("drop",event=>{
-        event.preventDefault();button.classList.remove("drop-target");
-        const cardId=event.dataTransfer.getData("text/plain")||selectedCard;
-        if(cardId)placeUnit(cardId,Number(button.dataset.fieldIndex));
-      });
-    }
-  }));
+  // Field and hand input is delegated from stable parent containers in wire(),
+  // so a Firebase-driven render cannot leave detached buttons with stale handlers.
   updateTimer();
 }
 async function handleHand(id){
@@ -843,6 +822,53 @@ function timerLoop(){
   },150);
 }
 function wire(){
+  $("handCards").addEventListener("click",event=>{
+    const button=event.target.closest("[data-hand-id]");
+    if(button&&!button.disabled)handleHand(button.dataset.handId);
+  });
+  $("handCards").addEventListener("dragstart",event=>{
+    const button=event.target.closest("[data-hand-id]");
+    if(!button||!room||room.phase!=="placement"||room.activeSeat!==mySeat)return;
+    const card=room.players[mySeat].hand.find(item=>item.id===button.dataset.handId);
+    if(!card||!UNITS.includes(card.type)){event.preventDefault();return;}
+    selectedCard=card.id;
+    event.dataTransfer.effectAllowed="move";
+    event.dataTransfer.setData("text/plain",card.id);
+    button.classList.add("dragging");
+    $("handHint").textContent="카드를 놓을 필드 칸으로 드래그하세요.";
+  });
+  $("handCards").addEventListener("dragend",event=>{
+    const button=event.target.closest("[data-hand-id]");
+    if(button)button.classList.remove("dragging");
+  });
+  $("myField").addEventListener("click",event=>{
+    const button=event.target.closest("[data-field-index]");
+    if(button)handleField(button);
+  });
+  $("opponentField").addEventListener("click",event=>{
+    const button=event.target.closest("[data-field-index]");
+    if(button)handleField(button);
+  });
+  $("myField").addEventListener("dragover",event=>{
+    const button=event.target.closest('[data-field-side="mine"][data-field-index]');
+    if(!button||button.querySelector(".field-card")||!room||room.phase!=="placement"||room.activeSeat!==mySeat)return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect="move";
+    button.classList.add("drop-target");
+  });
+  $("myField").addEventListener("dragleave",event=>{
+    const button=event.target.closest("[data-field-index]");
+    if(button&&!button.contains(event.relatedTarget))button.classList.remove("drop-target");
+  });
+  $("myField").addEventListener("drop",event=>{
+    const button=event.target.closest('[data-field-side="mine"][data-field-index]');
+    if(!button||!room||room.phase!=="placement"||room.activeSeat!==mySeat)return;
+    event.preventDefault();
+    button.classList.remove("drop-target");
+    const cardId=event.dataTransfer.getData("text/plain")||selectedCard;
+    if(cardId)placeUnit(cardId,Number(button.dataset.fieldIndex));
+    else toast("손패에서 배치할 카드를 끌어와 주세요.");
+  });
   $("createRoomButton").addEventListener("click",createRoom);$("joinRoomButton").addEventListener("click",joinRoom);$("startGameButton").addEventListener("click",startGame);
   $("copyRoomCodeButton").addEventListener("click",async()=>{try{await navigator.clipboard.writeText(roomCode);toast("방 코드를 복사했습니다.");}catch{toast("방 코드: "+roomCode);}});
   $("exitLobbyButton").addEventListener("click",leaveRoom);$("passPlacementButton").addEventListener("click",passPlacement);
