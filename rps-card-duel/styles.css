@@ -258,3 +258,8 @@ button:disabled{opacity:.4;cursor:not-allowed}
 .market-action-timer{font-size:18px;font-weight:900;font-variant-numeric:tabular-nums;color:#f3cc75;background:#211912;border:1px solid #ac8652;border-radius:8px;padding:6px 12px;min-width:84px;text-align:center}
 .market-action-timer.warning{color:#ffb76e}.market-action-timer.danger{color:#ff7972}
 .hud-player-copy b.score-pulse{animation:scorePulse .7s ease-out}
+
+.field-card.advancing-mine{animation:advanceCardDown .48s cubic-bezier(.2,.7,.25,1)}
+.field-card.advancing-opponent{animation:advanceCardUp .48s cubic-bezier(.2,.7,.25,1)}
+@keyframes advanceCardDown{0%{opacity:.4;transform:translateY(17px) scale(.94)}100%{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes advanceCardUp{0%{opacity:.4;transform:translateY(-17px) scale(.94)}100%{opacity:1;transform:translateY(0) scale(1)}}
