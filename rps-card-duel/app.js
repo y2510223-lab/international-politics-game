@@ -591,7 +591,7 @@ function renderField(id,targetSeat,opponentView){
         card=event.card;
         anim="destroying";
       }else if(event?.type==="attack"&&event.attackerSeat===seat&&event.lane===lane&&index===lane){
-        anim="attack-mine";
+        anim=seat===mySeat?"attack-mine":"attack-opponent";
       }else if(event?.type==="attack"&&event.targetSeat===seat&&event.lane===lane&&index===lane){
         anim="target-hit";
       }else if(event?.type==="advance"&&event.seat===seat&&event.toIndex===index){
@@ -726,6 +726,9 @@ function render(){
   const me=room.players[mySeat],enemy=room.players[other(mySeat)];
   $("opponentName").textContent=enemy.name;$("opponentHandCount").textContent="손패 "+enemy.hand.length+"장";$("opponentScore").textContent=enemy.score+"점";
   $("myScore").textContent=me.score+"점";$("turnNumber").textContent=room.turnNumber+"번째 턴";
+  const scoringEvent=room.battleEvent&&(room.battleEvent.type==="score"||room.battleEvent.type==="bonusScore")?room.battleEvent:null;
+  $("myScore").classList.toggle("score-pulse",!!scoringEvent&&scoringEvent.seat===mySeat);
+  $("opponentScore").classList.toggle("score-pulse",!!scoringEvent&&scoringEvent.seat===other(mySeat));
   $("attackerBadge").textContent="공격자: "+(room.attackerSeat===mySeat?"나":enemy.name);
   $("activePlayerBadge").textContent=room.activeSeat===mySeat?"내 차례":enemy.name+" 차례";
   $("phaseLabel").textContent=({market:"용병 선택",placement:"카드 배치",decision:"전투 결정",spells:"마법 사용",battleAnimation:"전투 진행 중",battleResult:"전투 결과"})[room.phase]||"진행 중";
