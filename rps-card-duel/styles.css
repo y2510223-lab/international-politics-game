@@ -263,3 +263,8 @@ button:disabled{opacity:.4;cursor:not-allowed}
 .field-card.advancing-opponent{animation:advanceCardUp .48s cubic-bezier(.2,.7,.25,1)}
 @keyframes advanceCardDown{0%{opacity:.4;transform:translateY(17px) scale(.94)}100%{opacity:1;transform:translateY(0) scale(1)}}
 @keyframes advanceCardUp{0%{opacity:.4;transform:translateY(-17px) scale(.94)}100%{opacity:1;transform:translateY(0) scale(1)}}
+
+.field-slot.drop-target{outline:4px solid #e5bc68;outline-offset:-4px;background:linear-gradient(145deg,#86704d,#61472c);box-shadow:0 0 0 4px #e5bc6840,inset 0 0 0 2px #f5dfaa}
+.hand-card.dragging{opacity:.58;filter:saturate(.75);cursor:grabbing}
+.field-slot:disabled{cursor:default}
+.field-slot.clickable{cursor:pointer;pointer-events:auto}
