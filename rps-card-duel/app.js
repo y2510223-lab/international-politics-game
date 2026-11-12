@@ -595,7 +595,7 @@ function renderField(id,targetSeat,opponentView){
       }else if(event?.type==="attack"&&event.targetSeat===seat&&event.lane===lane&&index===lane){
         anim="target-hit";
       }else if(event?.type==="advance"&&event.seat===seat&&event.toIndex===index){
-        anim="advancing";
+        anim=opponentView?"advancing-opponent":"advancing-mine";
       }else if(event?.type==="tie"&&event.lane===lane&&index===lane){
         anim="tie-flash";
       }
