@@ -268,3 +268,47 @@ button:disabled{opacity:.4;cursor:not-allowed}
 .hand-card.dragging{opacity:.58;filter:saturate(.75);cursor:grabbing}
 .field-slot:disabled{cursor:default}
 .field-slot.clickable{cursor:pointer;pointer-events:auto}
+
+/* Natural fan: central cards sit in front; each neighbor is slightly offset and rotated. */
+.hand-cards{
+  display:flex;align-items:flex-end;justify-content:center;gap:0;
+  padding:18px 16px 8px;overflow-x:auto;overflow-y:visible;
+  isolation:isolate;
+}
+.hand-card{
+  position:relative;flex:0 0 clamp(70px,5.9vw,104px);
+  margin-left:clamp(-36px,-2.7vw,-20px);
+  transform:translateY(var(--fan-lift,0px)) rotate(var(--fan-angle,0deg));
+  transform-origin:50% 94%;
+  z-index:1;
+  backface-visibility:hidden;
+}
+.hand-card:first-child{margin-left:0}
+.hand-card:hover:not(:disabled),.hand-card:focus-visible{
+  transform:translateY(-18px) rotate(0deg) scale(1.06)!important;
+  z-index:300!important;
+}
+.hand-card.selected{
+  transform:translateY(-15px) rotate(0deg) scale(1.045)!important;
+  z-index:250!important;
+}
+.hand-card.dragging{opacity:.55;transform:translateY(-8px) rotate(0deg) scale(.98)!important;z-index:350!important}
+.hand-panel{overflow:visible}
+.hand-content{overflow:visible}
+.turn-end-button{
+  flex:0 0 108px;min-height:58px;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:3px;margin-left:7px;
+  border:1px solid #b28a4b;border-radius:9px;
+  background:linear-gradient(150deg,#6f5635,#44301f);
+  color:#f5e5c6;box-shadow:0 4px 10px #1b100a55;
+}
+.turn-end-button strong{font-size:12px;letter-spacing:.2px}
+.turn-end-button small{font-size:8px;color:#d7c29e}
+.turn-end-button:hover:not(:disabled){filter:brightness(1.12);transform:translateY(-2px)}
+.turn-end-button:disabled{opacity:.45;cursor:not-allowed}
+@media(max-width:760px){
+  .hand-cards{justify-content:flex-start;padding-left:13px}
+  .hand-card{flex-basis:74px;margin-left:-25px}
+  .hand-card:first-child{margin-left:0}
+  .turn-end-button{flex-basis:88px;min-height:52px}
+}
