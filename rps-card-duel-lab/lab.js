@@ -96,16 +96,22 @@ function renderLibrary(){
 function renderField(side){
   const host=$(side==="p1"?"fieldA":"fieldB");
   const field=state.fields[side];
+  const event=state.currentEvent;
   host.innerHTML=[0,1,2].map(lane=>{
     const slots=[lane,lane+3].map(index=>{
-      const card=field[index];
+      // Keep a destroyed card on screen just for the short break animation.
+      let card=field[index];
+      let destroyed=false;
+      if(event?.type==="destroy"&&event.seat===side&&event.index===index){
+        card=event.card;
+        destroyed=true;
+      }
       if(!card)return '<button class="lab-slot '+(state.selectedType?"selected-target":"")+'" data-field-side="'+side+'" data-index="'+index+'" type="button" aria-label="'+sideName(side)+' '+laneName(lane)+' '+rowName(index)+' 빈칸"></button>';
-      const event=state.currentEvent;
       let anim="";
-      if(event?.type==="attack"&&event.attacker===side&&event.lane===lane)anim=side==="p1"?"anim-attack-a":"anim-attack-b";
-      if(event?.type==="destroy"&&event.seat===side&&event.index===index)anim="anim-destroy";
-      if(event?.type==="advance"&&event.seat===side&&event.to===index)anim=side==="p1"?"anim-advance-a":"anim-advance-b";
-      if(event?.type==="attack"&&event.target===side&&event.lane===lane)anim="anim-hit";
+      if(destroyed)anim="anim-destroy";
+      else if(event?.type==="attack"&&event.attacker===side&&event.lane===lane)anim=side==="p1"?"anim-attack-a":"anim-attack-b";
+      else if(event?.type==="advance"&&event.seat===side&&event.to===index)anim=side==="p1"?"anim-advance-a":"anim-advance-b";
+      else if(event?.type==="attack"&&event.target===side&&event.lane===lane)anim="anim-hit";
       return '<button class="lab-slot occupied" data-field-side="'+side+'" data-index="'+index+'" type="button"><span class="slot-card '+anim+'"><span class="slot-icon">'+CARD[card.type].icon+'</span><span class="slot-copy"><strong>'+CARD[card.type].name+'</strong><small>'+CARD[card.type].desc+'</small></span></span><span class="slot-remove" title="카드 제거">×</span></button>';
     }).join("");
     return '<div class="lane-column">'+slots+'</div>';
