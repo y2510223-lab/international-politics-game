@@ -98,6 +98,14 @@
             <h3>마법 카드</h3>
             <div id="magicCards" class="card-list"></div>
           </div>
+          <div id="magicLabPanel" class="magic-lab-panel hidden">
+            <h3 id="magicLabTitle">마법 테스트</h3>
+            <p id="magicLabHelp">마법의 대상을 설정하세요.</p>
+            <label>대상 플레이어<select id="magicTargetSide"><option value="p2">플레이어 B</option><option value="p1">플레이어 A</option></select></label>
+            <label>세로줄<select id="magicLane"><option value="0">왼쪽</option><option value="1">가운데</option><option value="2">오른쪽</option></select></label>
+            <label>행 선택<select id="magicRow"><option value="0">전열</option><option value="1">후열</option></select></label>
+            <button id="applyMagic" class="button primary full" type="button">마법 적용</button>
+          </div>
           <button id="clearSelection" class="button secondary full" type="button">카드 선택 취소</button>
         </section>
 
