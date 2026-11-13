@@ -631,9 +631,11 @@ function renderHand(){
     if(pendingMagic?.type==="magicReinforce"&&active&&UNITS.includes(card.type))enabled=true;
     const selected=card.id===selectedCard||card.id===pendingUnit||pendingPlacements.some(p=>p.cardId===card.id);
     const delta=index-center;
-    const angle=Math.max(-13,Math.min(13,delta*5.2));
-    const lift=Math.abs(delta)*2.6;
-    const z=index+1;
+    const angle=Math.max(-15,Math.min(15,delta*4.8));
+    const lift=Math.abs(delta)*1.15;
+    // The middle of the fan sits above its neighbors; cards near either edge
+    // remain behind the cards closer to the center.
+    const z=Math.round(100-Math.abs(delta)*12);
     return '<button type="button" class="hand-card '+(selected?"selected":"")+'" style="--fan-angle:'+angle+'deg;--fan-lift:'+lift+'px;z-index:'+z+'" data-hand-id="'+card.id+'" '+(enabled?"":"disabled")+'><span class="card-icon">'+c.icon+'</span><span class="card-name">'+c.name+'</span><span class="card-desc">'+c.desc+'</span><span class="card-tag">'+c.tag+'</span></button>';
   }).join("");
   $("handHint").textContent=pendingMagic?.type==="magicReinforce"?(pendingUnit?"내 필드의 빈칸을 선택하세요.":"추가 배치 "+pendingPlacements.length+"장 · 유닛 선택"):(room.phase==="placement"&&active?(selectedCard?"선택한 카드를 내 필드의 빈칸에 놓으세요.":"유닛 카드를 선택한 뒤 빈 필드를 클릭하거나 드래그하세요."):room.phase==="placement"?"상대 플레이어의 배치 차례입니다.":room.phase==="spells"?"마법카드를 선택해 효과를 사용하세요.":"현재 단계에서는 손패를 사용할 수 없습니다.");
@@ -718,7 +720,10 @@ function renderActions(){
     $("waitingArea").classList.remove("hidden");$("waitingText").textContent="전투 결과 계산 완료";
   }
   $("gameNotice").textContent=room.phase==="battleAnimation"?(room.battleEvent?.text||"전투 진행 중"):(room.lastMessage||"");
-  $("passPlacementButton").disabled=!mine;$("declareBattleButton").disabled=!mine;$("skipBattleButton").disabled=!mine;$("passSpellButton").disabled=!mine;
+  const canEndPlacement=room.phase==="placement"&&mine;
+  $("passPlacementButton").classList.toggle("hidden",!canEndPlacement);
+  $("passPlacementButton").disabled=!canEndPlacement;
+  $("declareBattleButton").disabled=!mine;$("skipBattleButton").disabled=!mine;$("passSpellButton").disabled=!mine;
 }
 function renderLobby(){
   const a=room.players.p1,b=room.players.p2;
