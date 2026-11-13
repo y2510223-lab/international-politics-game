@@ -5,6 +5,7 @@ on:
     paths:
       - "sniper-duel/**"
       - "rps-card-duel/**"
+      - "rps-card-duel-lab/**"
       - "index.html"
       - "styles.css"
       - ".github/workflows/pages.yml"
