@@ -16,7 +16,7 @@
         <p class="subhead">혼자 카드 배치와 상성, 특수 효과, 전투 순서를 실험하는 독립 테스트 공간</p>
       </div>
       <div class="header-actions">
-        <span class="local-badge">로컬 전용 · 자동 저장/온라인 연결 없음</span>
+        <span class="local-badge">로컬 테스트 · 온라인 연결 없음</span>
         <button id="resetAll" class="button danger-ghost" type="button">전체 초기화</button>
       </div>
     </header>
@@ -104,6 +104,13 @@
             <label>대상 플레이어<select id="magicTargetSide"><option value="p2">플레이어 B</option><option value="p1">플레이어 A</option></select></label>
             <label>세로줄<select id="magicLane"><option value="0">왼쪽</option><option value="1">가운데</option><option value="2">오른쪽</option></select></label>
             <label>행 선택<select id="magicRow"><option value="0">전열</option><option value="1">후열</option></select></label>
+            <label id="magicUnitRow" class="magic-unit-row">긴급 배치할 유닛
+              <select id="magicUnitType">
+                <option value="fist">주먹</option><option value="scissors">가위</option><option value="paper">보</option>
+                <option value="specialPaper">특수 보</option><option value="specialFist">특수 주먹</option>
+                <option value="specialScissors">특수 가위</option><option value="duelist">조건부 승리</option>
+              </select>
+            </label>
             <button id="applyMagic" class="button primary full" type="button">마법 적용</button>
           </div>
           <button id="clearSelection" class="button secondary full" type="button">카드 선택 취소</button>
